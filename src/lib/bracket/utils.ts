@@ -71,6 +71,7 @@ export function buildSeededSlots(players: BracketPlayer[]): [Slot, Slot][] {
  * Algorithm: recursively split the bracket.
  */
 export function buildSeedingPairs(size: number): [number, number][] {
+  if (size === 1) return [[1, 1]]; // Single player: bye match against themselves (edge case)
   if (size === 2) return [[1, 2]];
 
   const half = size / 2;
