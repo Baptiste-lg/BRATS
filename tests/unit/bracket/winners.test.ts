@@ -50,11 +50,10 @@ describe('generateBracket — winners bracket', () => {
       }
     });
 
-    it('winners final has no nextMatchId (advances to grand final)', () => {
+    it('winners final has a nextMatchId pointing to the grand final', () => {
       const final = winners.find((m) => m.round === bracket.winnersRounds);
       expect(final).toBeDefined();
-      // The winners final feeds the grand final, handled separately
-      expect(final!.nextMatchId).toBeNull();
+      expect(final!.nextMatchId).toBe('GRAND_FINAL-R1-P1');
     });
 
     it('all round 1 matches have a loserMatchId (losers bracket entry)', () => {
