@@ -1,0 +1,196 @@
+// Prisma schema for BRATS — Tournament Bracket app
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum TournamentStatus {
+  DRAFT // Created, players being added
+  LIVE  // Bracket generated, matches ongoing
+  DONE  // All matches resolved
+}
+
+enum TournamentFormat {
+  DOUBLE_ELIMINATION
+  SINGLE_ELIMINATION
+}
+
+enum BracketSide {
+  WINNERS
+  LOSERS
+  GRAND_FINAL
+}
+
+enum MatchStatus {
+  PENDING              // No score reported yet
+  AWAITING_VALIDATION  // Player reported a score, waiting for organizer
+  DONE                 // Organizer validated the result
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  tournaments   Tournament[] @relation("Organizer")
+  reportedMatches Match[]    @relation("Reporter")
+  validatedMatches Match[]   @relation("Validator")
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Tournament {
+  id          String           @id @default(cuid())
+  code        String           @unique // Short URL slug, e.g. "abc123"
+  name        String
+  format      TournamentFormat @default(DOUBLE_ELIMINATION)
+  status      TournamentStatus @default(DRAFT)
+  organizerId String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  organizer   User      @relation("Organizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  players     Player[]
+  matches     Match[]
+  eloRecords  EloRecord[]
+
+  @@index([code])
+  @@index([organizerId])
+}
+
+model Player {
+  id           String  @id @default(cuid())
+  tournamentId String
+  name         String  // Display name (no account required)
+  seed         Int?    // Optional seeding for bracket generation
+  userId       String? // Optional link to a real User account
+  token        String  @unique @default(cuid()) // Signed token for score reporting link
+
+  // Relations
+  tournament  Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  matchesAsA  Match[]    @relation("PlayerA")
+  matchesAsB  Match[]    @relation("PlayerB")
+  wonMatches  Match[]    @relation("Winner")
+  eloRecords  EloRecord[]
+
+  @@index([tournamentId])
+  @@index([token])
+}
+
+model Match {
+  id           String      @id @default(cuid())
+  tournamentId String
+  round        Int         // Round number (1-based)
+  position     Int         // Position within the round (for bracket layout)
+  bracketSide  BracketSide
+  playerAId    String?     // Null = bye
+  playerBId    String?     // Null = bye
+  scoreA       Int?
+  scoreB       Int?
+  winnerId     String?
+  status       MatchStatus @default(PENDING)
+  reportedById String?     // Player who reported the score
+  validatedById String?    // Organizer who validated
+  nextMatchId  String?     // Where winner advances to
+  loserMatchId String?     // Where loser drops to (in double-elim)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  playerA      Player?    @relation("PlayerA", fields: [playerAId], references: [id], onDelete: SetNull)
+  playerB      Player?    @relation("PlayerB", fields: [playerBId], references: [id], onDelete: SetNull)
+  winner       Player?    @relation("Winner", fields: [winnerId], references: [id], onDelete: SetNull)
+  reportedBy   User?      @relation("Reporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  validatedBy  User?      @relation("Validator", fields: [validatedById], references: [id], onDelete: SetNull)
+  nextMatch    Match?     @relation("NextMatch", fields: [nextMatchId], references: [id], onDelete: SetNull)
+  nextMatchOf  Match[]    @relation("NextMatch")
+  loserMatch   Match?     @relation("LoserMatch", fields: [loserMatchId], references: [id], onDelete: SetNull)
+  loserMatchOf Match[]    @relation("LoserMatch")
+
+  @@index([tournamentId])
+  @@index([status])
+}
+
+model EloRecord {
+  id           String   @id @default(cuid())
+  playerName   String   // Global identifier across tournaments
+  playerId     String
+  tournamentId String
+  eloBefore    Int
+  eloAfter     Int
+  delta        Int      // eloAfter - eloBefore
+  createdAt    DateTime @default(now())
+
+  // Relations
+  player      Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  tournament  Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([playerName])
+  @@index([playerId])
+}
+
+// ---------------------------------------------------------------------------
+// NextAuth Models (required by NextAuth.js adapter)
+// ---------------------------------------------------------------------------
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
