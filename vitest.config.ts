@@ -12,7 +12,17 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: ['src/lib/**/*.ts'],
-      exclude: ['src/lib/**/*.d.ts', 'tests/**'],
+      exclude: [
+        'src/lib/**/*.d.ts',
+        'tests/**',
+        // Server-side files requiring a real DB or NextAuth — tested via E2E
+        'src/lib/db.ts',
+        'src/lib/session.ts',
+        'src/lib/auth.ts',
+        'src/lib/elo/service.ts',
+        // Re-export index files — covered transitively
+        'src/lib/elo/index.ts',
+      ],
       thresholds: {
         lines: 80,
         functions: 80,
