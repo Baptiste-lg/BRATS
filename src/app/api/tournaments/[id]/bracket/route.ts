@@ -1,10 +1,11 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ok, handleError } from '@/lib/api';
 import { requireAuth } from '@/lib/session';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
 import { generateBracket } from '@/lib/bracket';
 import type { BracketPlayer } from '@/lib/bracket/types';
+import { isBye } from '@/lib/bracket/types';
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -31,11 +32,13 @@ export async function POST(_request: NextRequest, { params }: Params) {
     }
 
     // Map DB players to bracket engine format
-    const players: BracketPlayer[] = tournament.players.map((p, i) => ({
-      id: p.id,
-      name: p.name,
-      seed: p.seed ?? i + 1,
-    }));
+    const players: BracketPlayer[] = tournament.players.map(
+      (p: { id: string; name: string; seed: number | null }, i: number) => ({
+        id: p.id,
+        name: p.name,
+        seed: p.seed ?? i + 1,
+      }),
+    );
 
     // Generate the pure bracket
     const bracket = generateBracket(players);
@@ -49,17 +52,23 @@ export async function POST(_request: NextRequest, { params }: Params) {
       ...bracket.matches.map((m) =>
         db.match.create({
           data: {
+            id: m.id,
             tournamentId: id,
             round: m.round,
             position: m.position,
             bracketSide: m.side,
             playerAId: m.playerA && 'id' in m.playerA ? m.playerA.id : null,
             playerBId: m.playerB && 'id' in m.playerB ? m.playerB.id : null,
+            playerAIsBye: isBye(m.playerA),
+            playerBIsBye: isBye(m.playerB),
+            scoreA: m.scoreA,
+            scoreB: m.scoreB,
             winnerId: m.winnerId,
             status: m.status,
-            // Store next/loser match references as JSON in a note field isn't ideal,
-            // but for now we wire them as external IDs embedded in match ID strings.
-            // The full wiring is computed client-side from match IDs.
+            nextMatchId: m.nextMatchId,
+            nextMatchPosition: m.nextMatchPosition,
+            loserMatchId: m.loserMatchId,
+            loserMatchPosition: m.loserMatchPosition,
           },
         }),
       ),

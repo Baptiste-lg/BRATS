@@ -5,7 +5,6 @@ import { BracketView } from '@/components/bracket/BracketView';
 import type { PublicMatch, TournamentRole } from '@/types/tournament';
 
 interface Props {
-  tournamentId: string;
   tournamentCode: string;
   tournamentName: string;
   initialMatches: PublicMatch[];
@@ -14,7 +13,6 @@ interface Props {
 }
 
 export function TournamentClient({
-  tournamentId,
   tournamentCode,
   tournamentName,
   initialMatches,
@@ -26,7 +24,7 @@ export function TournamentClient({
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/t/${tournamentCode}`);
     if (res.ok) {
-      const { data } = await res.json() as { data: { matches: PublicMatch[] } };
+      const { data } = (await res.json()) as { data: { matches: PublicMatch[] } };
       setMatches(data.matches);
     }
   }, [tournamentCode]);
@@ -38,17 +36,19 @@ export function TournamentClient({
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">{tournamentName}</h1>
         <div className="flex items-center gap-2">
-          <span className={[
-            'rounded-full px-3 py-1 text-xs font-medium',
-            role === 'organizer' ? 'bg-brand-500/20 text-brand-500' :
-            role === 'player' ? 'bg-green-500/20 text-green-400' :
-            'bg-white/10 text-gray-400',
-          ].join(' ')}>
+          <span
+            className={[
+              'rounded-full px-3 py-1 text-xs font-medium',
+              role === 'organizer'
+                ? 'bg-brand-500/20 text-brand-500'
+                : role === 'player'
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-white/10 text-gray-400',
+            ].join(' ')}
+          >
             {role}
           </span>
-          {isOrganizer && (
-            <span className="text-xs text-gray-500">/t/{tournamentCode}</span>
-          )}
+          {isOrganizer && <span className="text-xs text-gray-500">/t/{tournamentCode}</span>}
         </div>
       </div>
 
@@ -70,9 +70,7 @@ export function TournamentClient({
             </code>
             <button
               onClick={() =>
-                navigator.clipboard.writeText(
-                  `${window.location.origin}/t/${tournamentCode}`,
-                )
+                navigator.clipboard.writeText(`${window.location.origin}/t/${tournamentCode}`)
               }
               className="rounded bg-white/5 px-3 py-2 text-sm text-gray-400 transition hover:bg-white/10 hover:text-white"
             >
@@ -80,8 +78,8 @@ export function TournamentClient({
             </button>
           </div>
           <p className="mt-2 text-xs text-gray-600">
-            Anyone with this link can view the bracket. Players get a unique link
-            to report their match score.
+            Anyone with this link can view the bracket. Players get a unique link to report their
+            match score.
           </p>
         </div>
       )}

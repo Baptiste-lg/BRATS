@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ok, created, handleError, parseBody } from '@/lib/api';
 import { requireAuth } from '@/lib/session';
@@ -15,6 +15,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const players = await db.player.findMany({
       where: { tournamentId: id },
       orderBy: { seed: 'asc' },
+      select: { id: true, name: true, seed: true },
     });
     return ok(players);
   } catch (error) {

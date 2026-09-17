@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ok, handleError } from '@/lib/api';
 import { requireAuth } from '@/lib/session';
@@ -9,9 +9,113 @@ interface Params {
   params: Promise<{ id: string }>;
 }
 
+type SlotPosition = 'A' | 'B';
+
+interface MutableMatch {
+  id: string;
+  tournamentId: string;
+  round: number;
+  position: number;
+  bracketSide: string;
+  playerAId: string | null;
+  playerBId: string | null;
+  playerAIsBye: boolean;
+  playerBIsBye: boolean;
+  scoreA: number | null;
+  scoreB: number | null;
+  winnerId: string | null;
+  status: 'PENDING' | 'AWAITING_VALIDATION' | 'DONE';
+  validatedById: string | null;
+  nextMatchId: string | null;
+  nextMatchPosition: SlotPosition | null;
+  loserMatchId: string | null;
+  loserMatchPosition: SlotPosition | null;
+}
+
+function hasKnownSlot(match: MutableMatch, position: SlotPosition): boolean {
+  return position === 'A'
+    ? match.playerAId !== null || match.playerAIsBye
+    : match.playerBId !== null || match.playerBIsBye;
+}
+
+function assignSlot(
+  match: MutableMatch,
+  position: SlotPosition,
+  playerId: string | null,
+  isBye: boolean,
+): boolean {
+  const currentPlayerId = position === 'A' ? match.playerAId : match.playerBId;
+  const currentIsBye = position === 'A' ? match.playerAIsBye : match.playerBIsBye;
+
+  if (hasKnownSlot(match, position) && (currentPlayerId !== playerId || currentIsBye !== isBye)) {
+    throw new ValidationError(`Bracket slot ${match.id}-${position} is already occupied`);
+  }
+
+  if (position === 'A') {
+    match.playerAId = playerId;
+    match.playerAIsBye = isBye;
+  } else {
+    match.playerBId = playerId;
+    match.playerBIsBye = isBye;
+  }
+
+  return currentPlayerId !== playerId || currentIsBye !== isBye;
+}
+
+function assignLinkedSlot(
+  matches: Map<string, MutableMatch>,
+  matchId: string | null,
+  position: SlotPosition | null,
+  playerId: string | null,
+  isBye: boolean,
+  changed: Set<string>,
+): void {
+  if (matchId === null || position === null) return;
+
+  const target = matches.get(matchId);
+  if (target === undefined) {
+    throw new ValidationError(`Bracket points to missing match ${matchId}`);
+  }
+
+  if (assignSlot(target, position, playerId, isBye)) {
+    changed.add(target.id);
+  }
+}
+
+function resolveAutomaticMatches(matches: Map<string, MutableMatch>, changed: Set<string>): void {
+  let didChange = true;
+
+  while (didChange) {
+    didChange = false;
+
+    for (const match of matches.values()) {
+      if (match.status !== 'PENDING' || !hasKnownSlot(match, 'A') || !hasKnownSlot(match, 'B')) {
+        continue;
+      }
+
+      const hasPlayerA = match.playerAId !== null;
+      const hasPlayerB = match.playerBId !== null;
+      if (hasPlayerA && hasPlayerB) continue;
+
+      match.status = 'DONE';
+      match.winnerId = match.playerAId ?? match.playerBId;
+      changed.add(match.id);
+      didChange = true;
+
+      assignLinkedSlot(
+        matches,
+        match.nextMatchId,
+        match.nextMatchPosition,
+        match.winnerId,
+        match.winnerId === null,
+        changed,
+      );
+      assignLinkedSlot(matches, match.loserMatchId, match.loserMatchPosition, null, true, changed);
+    }
+  }
+}
+
 // POST /api/matches/[id]/validate — organizer validates the reported score
-// Determines the winner, advances them to their next match, and drops
-// the loser to the losers bracket (if applicable).
 export async function POST(_request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
@@ -19,11 +123,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
 
     const match = await db.match.findUnique({
       where: { id },
-      include: {
-        tournament: true,
-        playerA: true,
-        playerB: true,
-      },
+      include: { tournament: true },
     });
 
     if (!match) throw new NotFoundError('Match not found');
@@ -33,25 +133,28 @@ export async function POST(_request: NextRequest, { params }: Params) {
     if (match.status !== 'AWAITING_VALIDATION') {
       throw new ValidationError('Match is not awaiting validation');
     }
-    if (match.scoreA === null || match.scoreB === null) {
-      throw new ValidationError('Scores have not been reported yet');
+    if (
+      match.scoreA === null ||
+      match.scoreB === null ||
+      match.playerAId === null ||
+      match.playerBId === null
+    ) {
+      throw new ValidationError('Match is missing players or scores');
     }
 
-    // Determine winner and loser
-    const winnerId = match.scoreA > match.scoreB
-      ? match.playerAId
-      : match.playerBId;
-    const loserId = match.scoreA > match.scoreB
-      ? match.playerBId
-      : match.playerAId;
+    const winnerId = match.scoreA > match.scoreB ? match.playerAId : match.playerBId;
+    const loserId = match.scoreA > match.scoreB ? match.playerBId : match.playerAId;
 
-    if (!winnerId) throw new ValidationError('Cannot determine winner: missing player');
-
-    // Advance winner, drop loser, and update Elo in a single transaction
-    await db.$transaction(async (tx) => {
-      // Mark match as done
-      await tx.match.update({
-        where: { id },
+    await db.$transaction(async (tx: typeof db) => {
+      // Claim the result conditionally so two organizer requests cannot both
+      // award Elo or advance the same match.
+      const claimed = await tx.match.updateMany({
+        where: {
+          id,
+          status: 'AWAITING_VALIDATION',
+          scoreA: match.scoreA,
+          scoreB: match.scoreB,
+        },
         data: {
           status: 'DONE',
           winnerId,
@@ -59,57 +162,101 @@ export async function POST(_request: NextRequest, { params }: Params) {
         },
       });
 
-      // Update Elo ratings if both players are identified
-      if (winnerId && loserId) {
+      if (claimed.count !== 1) {
+        throw new ValidationError('Match was already validated');
+      }
+
+      if (loserId !== null) {
         await applyEloUpdate(tx, winnerId, loserId, match.tournamentId);
       }
 
-      // Find the next match for the winner (same tournament, next round)
-      const allMatches = await tx.match.findMany({
+      const persistedMatches = (await tx.match.findMany({
         where: { tournamentId: match.tournamentId },
-        orderBy: [{ round: 'asc' }, { position: 'asc' }],
-      });
+      })) as MutableMatch[];
+      const mutableMatches = new Map<string, MutableMatch>(
+        persistedMatches.map((candidate) => [candidate.id, candidate]),
+      );
+      const current = mutableMatches.get(id);
+      if (current === undefined) {
+        throw new ValidationError(`Match not found: ${id}`);
+      }
 
-      // The bracket engine stored next/loser pointers via match IDs embedded in
-      // the match's bracketSide + round + position. Here we use a heuristic:
-      // winner advances to the match in the next round at position ceil(position/2).
-      const nextRound = match.round + 1;
-      const nextPosition = Math.ceil(match.position / 2);
-      const nextMatch = allMatches.find(
-        (m) =>
-          m.bracketSide === match.bracketSide &&
-          m.round === nextRound &&
-          m.position === nextPosition,
+      current.status = 'DONE';
+      current.winnerId = winnerId;
+      current.validatedById = user.id;
+      const changed = new Set<string>([current.id]);
+
+      assignLinkedSlot(
+        mutableMatches,
+        current.nextMatchId,
+        current.nextMatchPosition,
+        winnerId,
+        false,
+        changed,
+      );
+      assignLinkedSlot(
+        mutableMatches,
+        current.loserMatchId,
+        current.loserMatchPosition,
+        loserId,
+        false,
+        changed,
       );
 
-      if (nextMatch) {
-        const slot = match.position % 2 === 1 ? 'playerAId' : 'playerBId';
+      // Grand-final reset is conditional: the losers-bracket champion occupies
+      // slot B in GF1 and only activates reset after defeating slot A.
+      if (
+        current.bracketSide === 'GRAND_FINAL' &&
+        current.round === 1 &&
+        current.nextMatchId !== null &&
+        winnerId === current.playerBId
+      ) {
+        assignLinkedSlot(
+          mutableMatches,
+          current.nextMatchId,
+          'A',
+          current.playerAId,
+          false,
+          changed,
+        );
+        assignLinkedSlot(
+          mutableMatches,
+          current.nextMatchId,
+          'B',
+          current.playerBId,
+          false,
+          changed,
+        );
+      }
+
+      resolveAutomaticMatches(mutableMatches, changed);
+
+      for (const changedId of changed) {
+        const candidate = mutableMatches.get(changedId);
+        if (candidate === undefined) continue;
+
         await tx.match.update({
-          where: { id: nextMatch.id },
-          data: { [slot]: winnerId },
+          where: { id: candidate.id },
+          data: {
+            playerAId: candidate.playerAId,
+            playerBId: candidate.playerBId,
+            playerAIsBye: candidate.playerAIsBye,
+            playerBIsBye: candidate.playerBIsBye,
+            winnerId: candidate.winnerId,
+            status: candidate.status,
+            validatedById: candidate.validatedById,
+          },
         });
       }
 
-      // Drop loser to losers bracket (WINNERS matches only)
-      if (match.bracketSide === 'WINNERS' && loserId) {
-        // Find the corresponding losers bracket entry match.
-        // Convention: losers entry round = 2*winnersRound - 1, paired by position.
-        const lbEntryRound = 2 * match.round - 1;
-        const lbPosition = Math.ceil(match.position / 2);
-        const lbMatch = allMatches.find(
-          (m) =>
-            m.bracketSide === 'LOSERS' &&
-            m.round === lbEntryRound &&
-            m.position === lbPosition,
-        );
-
-        if (lbMatch) {
-          const slot = match.position % 2 === 1 ? 'playerAId' : 'playerBId';
-          await tx.match.update({
-            where: { id: lbMatch.id },
-            data: { [slot]: loserId },
-          });
-        }
+      const hasUnresolvedMatches = [...mutableMatches.values()].some(
+        (candidate) => candidate.status !== 'DONE',
+      );
+      if (!hasUnresolvedMatches) {
+        await tx.tournament.update({
+          where: { id: match.tournamentId },
+          data: { status: 'DONE' },
+        });
       }
     });
 

@@ -38,6 +38,11 @@ enum MatchStatus {
   DONE                 // Organizer validated the result
 }
 
+enum MatchSlot {
+  A
+  B
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -53,7 +58,6 @@ model User {
 
   // Relations
   tournaments   Tournament[] @relation("Organizer")
-  reportedMatches Match[]    @relation("Reporter")
   validatedMatches Match[]   @relation("Validator")
   accounts      Account[]
   sessions      Session[]
@@ -93,6 +97,7 @@ model Player {
   matchesAsA  Match[]    @relation("PlayerA")
   matchesAsB  Match[]    @relation("PlayerB")
   wonMatches  Match[]    @relation("Winner")
+  reportedMatches Match[] @relation("Reporter")
   eloRecords  EloRecord[]
 
   @@index([tournamentId])
@@ -107,6 +112,8 @@ model Match {
   bracketSide  BracketSide
   playerAId    String?     // Null = bye
   playerBId    String?     // Null = bye
+  playerAIsBye Boolean     @default(false)
+  playerBIsBye Boolean     @default(false)
   scoreA       Int?
   scoreB       Int?
   winnerId     String?
@@ -114,7 +121,9 @@ model Match {
   reportedById String?     // Player who reported the score
   validatedById String?    // Organizer who validated
   nextMatchId  String?     // Where winner advances to
+  nextMatchPosition MatchSlot?
   loserMatchId String?     // Where loser drops to (in double-elim)
+  loserMatchPosition MatchSlot?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -123,7 +132,7 @@ model Match {
   playerA      Player?    @relation("PlayerA", fields: [playerAId], references: [id], onDelete: SetNull)
   playerB      Player?    @relation("PlayerB", fields: [playerBId], references: [id], onDelete: SetNull)
   winner       Player?    @relation("Winner", fields: [winnerId], references: [id], onDelete: SetNull)
-  reportedBy   User?      @relation("Reporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  reportedBy   Player?    @relation("Reporter", fields: [reportedById], references: [id], onDelete: SetNull)
   validatedBy  User?      @relation("Validator", fields: [validatedById], references: [id], onDelete: SetNull)
   nextMatch    Match?     @relation("NextMatch", fields: [nextMatchId], references: [id], onDelete: SetNull)
   nextMatchOf  Match[]    @relation("NextMatch")

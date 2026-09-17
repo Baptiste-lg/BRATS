@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ok, handleError } from '@/lib/api';
 import { NotFoundError } from '@/lib/errors';
@@ -15,29 +15,35 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
     const tournament = await db.tournament.findUnique({
       where: { code },
-      include: {
-        players: { orderBy: { seed: 'asc' } },
+      select: {
+        code: true,
+        name: true,
+        format: true,
+        status: true,
+        players: {
+          orderBy: { seed: 'asc' },
+          select: { name: true, seed: true },
+        },
         matches: {
           orderBy: [{ round: 'asc' }, { position: 'asc' }],
-          include: {
-            playerA: { select: { id: true, name: true, seed: true } },
-            playerB: { select: { id: true, name: true, seed: true } },
-            winner: { select: { id: true, name: true } },
+          select: {
+            id: true,
+            round: true,
+            position: true,
+            bracketSide: true,
+            scoreA: true,
+            scoreB: true,
+            status: true,
+            playerA: { select: { name: true } },
+            playerB: { select: { name: true } },
+            winner: { select: { name: true } },
           },
         },
-        organizer: { select: { id: true, name: true } },
       },
     });
 
     if (!tournament) throw new NotFoundError('Tournament not found');
-
-    // Strip sensitive data — tokens are never returned in the public API
-    const safe = {
-      ...tournament,
-      players: tournament.players.map(({ token: _token, userId: _userId, ...p }) => p),
-    };
-
-    return ok(safe);
+    return ok(tournament);
   } catch (error) {
     return handleError(error);
   }

@@ -75,7 +75,6 @@ export default async function TournamentPage({ params, searchParams }: Props) {
       <Navbar />
       <main className="mx-auto max-w-6xl px-6 py-10">
         <TournamentClient
-          tournamentId={tournament.id}
           tournamentCode={tournament.code}
           tournamentName={tournament.name}
           initialMatches={matches}

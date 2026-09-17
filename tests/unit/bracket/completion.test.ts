@@ -22,6 +22,7 @@ function advanceFirstReady(bracket: Bracket): Bracket {
     );
 
     if (match === undefined) return current;
+    if (!isPlayer(match.playerA)) throw new Error('Expected a real player in slot A');
     current = advanceWinner(current, match.id, match.playerA.id);
   }
 }
@@ -39,6 +40,7 @@ function advanceUntilGrandFinalReady(bracket: Bracket): Bracket {
     );
 
     if (match === undefined) return current;
+    if (!isPlayer(match.playerA)) throw new Error('Expected a real player in slot A');
     current = advanceWinner(current, match.id, match.playerA.id);
   }
 }
