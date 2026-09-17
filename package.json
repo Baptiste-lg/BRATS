@@ -22,8 +22,10 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.9.0",
     "@prisma/client": "^7.10.0",
     "next": "^15.3.0",
+    "next-auth": "^4.24.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
