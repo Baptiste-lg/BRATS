@@ -59,35 +59,29 @@ describe('generateBracket — losers bracket', () => {
     });
 
     it('every winners round-1 match has a loserMatchId', () => {
-      const wr1 = bracket.matches.filter(
-        (m) => m.side === 'WINNERS' && m.round === 1,
-      );
+      const wr1 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 1);
       for (const m of wr1) {
         expect(m.loserMatchId).not.toBeNull();
       }
     });
 
     it('every winners round-2 match has a loserMatchId', () => {
-      const wr2 = bracket.matches.filter(
-        (m) => m.side === 'WINNERS' && m.round === 2,
-      );
+      const wr2 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 2);
       for (const m of wr2) {
         expect(m.loserMatchId).not.toBeNull();
       }
     });
 
-    it('winners final (round 3) has no loserMatchId', () => {
+    it('winners final (round 3) drops its loser into the final LB match', () => {
       const wFinal = bracket.matches.find(
         (m) => m.side === 'WINNERS' && m.round === bracket.winnersRounds,
       );
       expect(wFinal).toBeDefined();
-      expect(wFinal!.loserMatchId).toBeNull();
+      expect(wFinal!.loserMatchId).toBe('LOSERS-R4-P1');
     });
 
     it('losers final has nextMatchId pointing to grand final', () => {
-      const losersFinal = losers.reduce((latest, m) =>
-        m.round > latest.round ? m : latest,
-      );
+      const losersFinal = losers.reduce((latest, m) => (m.round > latest.round ? m : latest));
       expect(losersFinal.nextMatchId).toBe('GRAND_FINAL-R1-P1');
     });
   });
@@ -100,10 +94,13 @@ describe('generateBracket — losers bracket', () => {
       expect(losers.length).toBeGreaterThan(0);
     });
 
+    it('has two losers-bracket matches including the winners-final drop', () => {
+      expect(losers).toHaveLength(2);
+      expect(bracket.losersRounds).toBe(2);
+    });
+
     it('every winners round-1 match has a loserMatchId', () => {
-      const wr1 = bracket.matches.filter(
-        (m) => m.side === 'WINNERS' && m.round === 1,
-      );
+      const wr1 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 1);
       for (const m of wr1) {
         expect(m.loserMatchId).not.toBeNull();
       }
@@ -122,8 +119,11 @@ describe('generateBracket — losers bracket', () => {
       // might be empty or have 0 rounds.
       // This is an edge case — we just verify the bracket is consistent.
       expect(bracket.winnersRounds).toBe(1);
-      // losers bracket may be 0 rounds
-      expect(losers.length).toBeGreaterThanOrEqual(0);
+      expect(losers).toHaveLength(0);
+
+      const winnersFinal = bracket.matches.find((m) => m.side === 'WINNERS');
+      expect(winnersFinal?.loserMatchId).toBe('GRAND_FINAL-R1-P1');
+      expect(winnersFinal?.loserMatchPosition).toBe('B');
     });
   });
 });

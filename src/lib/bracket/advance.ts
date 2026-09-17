@@ -1,5 +1,6 @@
-import type { Bracket, BracketMatch, BracketPlayer } from './types';
+import type { Bracket, BracketMatch, BracketPlayer, Slot } from './types';
 import { isPlayer } from './types';
+import { makeBye } from './utils';
 
 // =============================================================================
 // advanceWinner — pure score propagation
@@ -22,11 +23,7 @@ import { isPlayer } from './types';
  * @returns A new Bracket with the result applied.
  * @throws  If the match does not exist, is already done, or winnerId is invalid.
  */
-export function advanceWinner(
-  bracket: Bracket,
-  matchId: string,
-  winnerId: string,
-): Bracket {
+export function advanceWinner(bracket: Bracket, matchId: string, winnerId: string): Bracket {
   const match = bracket.matches.find((m) => m.id === matchId);
 
   if (match === undefined) {
@@ -41,6 +38,10 @@ export function advanceWinner(
   const playerA = isPlayer(match.playerA) ? match.playerA : null;
   const playerB = isPlayer(match.playerB) ? match.playerB : null;
 
+  if (playerA === null || playerB === null) {
+    throw new Error(`Match ${matchId} is not ready for a real result.`);
+  }
+
   if (playerA?.id !== winnerId && playerB?.id !== winnerId) {
     throw new Error(
       `Player ${winnerId} is not in match ${matchId}. ` +
@@ -48,15 +49,12 @@ export function advanceWinner(
     );
   }
 
-  const winner: BracketPlayer = (playerA?.id === winnerId ? playerA : playerB)!;
-  const loser: BracketPlayer | null =
-    playerA?.id === winnerId ? playerB : playerA;
+  const winner: BracketPlayer = playerA.id === winnerId ? playerA : playerB;
+  const loser: BracketPlayer = playerA.id === winnerId ? playerB : playerA;
 
   // Deep-clone the matches array to preserve immutability
   const newMatches: BracketMatch[] = bracket.matches.map((m) =>
-    m.id === matchId
-      ? { ...m, status: 'DONE', winnerId: winner.id }
-      : { ...m },
+    m.id === matchId ? { ...m, status: 'DONE', winnerId: winner.id } : { ...m },
   );
 
   const matchMap = new Map(newMatches.map((m) => [m.id, m]));
@@ -74,11 +72,7 @@ export function advanceWinner(
   }
 
   // Propagate loser to losers bracket
-  if (
-    loser !== null &&
-    match.loserMatchId !== null &&
-    match.loserMatchPosition !== null
-  ) {
+  if (match.loserMatchId !== null && match.loserMatchPosition !== null) {
     const loserMatch = matchMap.get(match.loserMatchId);
     if (loserMatch !== undefined) {
       if (match.loserMatchPosition === 'A') {
@@ -89,8 +83,87 @@ export function advanceWinner(
     }
   }
 
+  // The reset is conditional: it only becomes active when the losers-bracket
+  // champion defeats the winners-bracket champion in Grand Final 1. The
+  // normal nextMatchPosition field cannot represent this two-player handoff.
+  if (
+    match.side === 'GRAND_FINAL' &&
+    match.round === 1 &&
+    match.nextMatchId !== null &&
+    winner.id === playerB.id
+  ) {
+    const resetMatch = matchMap.get(match.nextMatchId);
+    if (resetMatch !== undefined) {
+      resetMatch.playerA = playerA;
+      resetMatch.playerB = playerB;
+    }
+  }
+
+  resolveAutomaticMatches(newMatches);
+
   return {
     ...bracket,
     matches: newMatches,
   };
+}
+
+/**
+ * Resolves matches whose two incoming slots are known and at least one slot is
+ * a bye. A null slot still means "waiting for a previous match" and must not
+ * be treated as a bye.
+ *
+ * This is used both during generation and after a real result is advanced,
+ * because a reported loser can complete a previously waiting bye match.
+ */
+export function resolveAutomaticMatches(matches: BracketMatch[]): void {
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    const matchMap = new Map(matches.map((match) => [match.id, match]));
+
+    for (const match of matches) {
+      if (match.status === 'DONE' || match.playerA === null || match.playerB === null) {
+        continue;
+      }
+
+      const playerA = isPlayer(match.playerA) ? match.playerA : null;
+      const playerB = isPlayer(match.playerB) ? match.playerB : null;
+
+      // Real matches remain pending for advanceWinner().
+      if (playerA !== null && playerB !== null) {
+        continue;
+      }
+
+      const winner: Slot = playerA ?? playerB ?? makeBye();
+      match.status = 'DONE';
+      match.winnerId = isPlayer(winner) ? winner.id : null;
+      changed = true;
+
+      if (match.nextMatchId !== null && match.nextMatchPosition !== null) {
+        const nextMatch = matchMap.get(match.nextMatchId);
+        if (nextMatch !== undefined) {
+          if (match.nextMatchPosition === 'A') {
+            nextMatch.playerA = winner;
+          } else {
+            nextMatch.playerB = winner;
+          }
+        }
+      }
+
+      // An automatic bye also contributes an empty loser slot. Without this
+      // propagation, non-power-of-two brackets leave phantom losers matches
+      // waiting forever for players who never existed.
+      if (match.loserMatchId !== null && match.loserMatchPosition !== null) {
+        const loserMatch = matchMap.get(match.loserMatchId);
+        if (loserMatch !== undefined) {
+          if (match.loserMatchPosition === 'A') {
+            loserMatch.playerA = makeBye();
+          } else {
+            loserMatch.playerB = makeBye();
+          }
+        }
+      }
+    }
+  }
 }

@@ -108,9 +108,7 @@ describe('generateBracket — winners bracket', () => {
     });
 
     it('exactly 3 round 1 matches contain a bye', () => {
-      const byeMatches = r1.filter(
-        (m) => isBye(m.playerA) || isBye(m.playerB),
-      );
+      const byeMatches = r1.filter((m) => isBye(m.playerA) || isBye(m.playerB));
       expect(byeMatches).toHaveLength(3);
     });
   });
@@ -125,27 +123,21 @@ describe('generateBracket — winners bracket', () => {
     });
 
     it('exactly 1 round 1 match contains a bye', () => {
-      const byeMatches = r1.filter(
-        (m) => isBye(m.playerA) || isBye(m.playerB),
-      );
+      const byeMatches = r1.filter((m) => isBye(m.playerA) || isBye(m.playerB));
       expect(byeMatches).toHaveLength(1);
     });
   });
 
   describe('3 players (1 bye)', () => {
     const bracket = generateBracket(makePlayers(3));
-    const r1 = bracket.matches.filter(
-      (m) => m.side === 'WINNERS' && m.round === 1,
-    );
+    const r1 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 1);
 
     it('round 1 has 2 matches', () => {
       expect(r1).toHaveLength(2);
     });
 
     it('exactly 1 bye in round 1', () => {
-      const byeMatches = r1.filter(
-        (m) => isBye(m.playerA) || isBye(m.playerB),
-      );
+      const byeMatches = r1.filter((m) => isBye(m.playerA) || isBye(m.playerB));
       expect(byeMatches).toHaveLength(1);
     });
   });
@@ -153,9 +145,7 @@ describe('generateBracket — winners bracket', () => {
   describe('seeding', () => {
     it('seed 1 and seed 2 are on opposite halves of the bracket (8 players)', () => {
       const bracket = generateBracket(makePlayers(8));
-      const r1 = bracket.matches.filter(
-        (m) => m.side === 'WINNERS' && m.round === 1,
-      );
+      const r1 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 1);
       const seedOneMatch = r1.findIndex(
         (m) =>
           (isPlayer(m.playerA) && m.playerA.seed === 1) ||
@@ -172,9 +162,7 @@ describe('generateBracket — winners bracket', () => {
 
     it('seed 1 faces seed 8 in round 1 (8 players)', () => {
       const bracket = generateBracket(makePlayers(8));
-      const r1 = bracket.matches.filter(
-        (m) => m.side === 'WINNERS' && m.round === 1,
-      );
+      const r1 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 1);
       const seedOneMatch = r1.find(
         (m) =>
           (isPlayer(m.playerA) && m.playerA.seed === 1) ||

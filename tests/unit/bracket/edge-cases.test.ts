@@ -49,17 +49,13 @@ describe('generateBracket — edge cases', () => {
     });
 
     it('has exactly 1 bye in round 1', () => {
-      const r1 = bracket.matches.filter(
-        (m) => m.side === 'WINNERS' && m.round === 1,
-      );
+      const r1 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 1);
       const byes = r1.filter((m) => isBye(m.playerA) || isBye(m.playerB));
       expect(byes).toHaveLength(1);
     });
 
     it('bye match is auto-resolved (status DONE)', () => {
-      const r1 = bracket.matches.filter(
-        (m) => m.side === 'WINNERS' && m.round === 1,
-      );
+      const r1 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 1);
       const byeMatch = r1.find((m) => isBye(m.playerA) || isBye(m.playerB));
       expect(byeMatch).toBeDefined();
       expect(byeMatch!.status).toBe('DONE');
@@ -75,17 +71,13 @@ describe('generateBracket — edge cases', () => {
     });
 
     it('has 3 byes in round 1', () => {
-      const r1 = bracket.matches.filter(
-        (m) => m.side === 'WINNERS' && m.round === 1,
-      );
+      const r1 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 1);
       const byes = r1.filter((m) => isBye(m.playerA) || isBye(m.playerB));
       expect(byes).toHaveLength(3);
     });
 
     it('all 3 bye matches are auto-resolved', () => {
-      const r1 = bracket.matches.filter(
-        (m) => m.side === 'WINNERS' && m.round === 1,
-      );
+      const r1 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 1);
       const byeMatches = r1.filter((m) => isBye(m.playerA) || isBye(m.playerB));
       for (const m of byeMatches) {
         expect(m.status).toBe('DONE');
@@ -98,9 +90,7 @@ describe('generateBracket — edge cases', () => {
     const bracket = generateBracket(makePlayers(7));
 
     it('has 1 bye in round 1', () => {
-      const r1 = bracket.matches.filter(
-        (m) => m.side === 'WINNERS' && m.round === 1,
-      );
+      const r1 = bracket.matches.filter((m) => m.side === 'WINNERS' && m.round === 1);
       const byes = r1.filter((m) => isBye(m.playerA) || isBye(m.playerB));
       expect(byes).toHaveLength(1);
     });
@@ -175,6 +165,35 @@ describe('generateBracket — edge cases', () => {
       const b1 = generateBracket(players);
       const b2 = generateBracket(players);
       expect(b1.matches.map((m) => m.id)).toEqual(b2.matches.map((m) => m.id));
+    });
+  });
+
+  describe('input validation', () => {
+    it('rejects duplicate player IDs', () => {
+      expect(() =>
+        generateBracket([
+          { id: 'same', name: 'A', seed: 1 },
+          { id: 'same', name: 'B', seed: 2 },
+        ]),
+      ).toThrow(/Duplicate player id/);
+    });
+
+    it('rejects duplicate seeds', () => {
+      expect(() =>
+        generateBracket([
+          { id: 'p1', name: 'A', seed: 1 },
+          { id: 'p2', name: 'B', seed: 1 },
+        ]),
+      ).toThrow(/Duplicate seed/);
+    });
+
+    it('rejects invalid seeds', () => {
+      expect(() =>
+        generateBracket([
+          { id: 'p1', name: 'A', seed: 0 },
+          { id: 'p2', name: 'B', seed: 2 },
+        ]),
+      ).toThrow(/Invalid seed/);
     });
   });
 });

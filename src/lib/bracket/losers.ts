@@ -2,11 +2,11 @@ import type { BracketMatch } from './types';
 import { matchId } from './utils';
 
 // =============================================================================
-// Losers bracket generator — correct double-elimination structure
+// Losers bracket generator — double-elimination structure
 //
 // Algorithm:
 //   lb_survivors = []
-//   for each winners round (except the winners final):
+//   for each winners round:
 //     wb_losers = matches from that winners round
 //     if lb_survivors is empty:
 //       pair wb_losers -> new LB "drop-in" round
@@ -25,28 +25,27 @@ export function generateLosersBracket(
 ): {
   losersMatches: BracketMatch[];
   losersRounds: number;
-  feedMap: Map<string, { matchId: string; position: 'A' | 'B' }>;
 } {
   if (winnersRounds <= 1) {
-    // 0 or 1 winners round means no losers bracket (2 players → direct to GF)
-    return { losersMatches: [], losersRounds: 0, feedMap: new Map() };
+    // With two players the WB loser goes directly to the grand final.
+    return { losersMatches: [], losersRounds: 0 };
   }
 
-  const feedMap = new Map<string, { matchId: string; position: 'A' | 'B' }>();
   const allLosersMatches: BracketMatch[] = [];
   let currentLbRound = 0; // will be incremented before each new LB round
 
   // Current survivors in the losers bracket (the matches whose winners are still alive)
   let lbSurvivors: BracketMatch[] = [];
 
-  // Process each winners round (except the last = winners final, whose winner goes to GF)
-  for (let wr = 1; wr < winnersRounds; wr++) {
+  // Process every winners round. The winners-final loser must enter the last
+  // losers round before the losers champion reaches the grand final.
+  for (let wr = 1; wr <= winnersRounds; wr++) {
     const wbLosers = winnersMatches.filter((m) => m.round === wr);
 
     if (lbSurvivors.length === 0) {
       // First LB round: pair the WB losers among themselves
       currentLbRound++;
-      lbSurvivors = pairDropIns(wbLosers, currentLbRound, feedMap, allLosersMatches);
+      lbSurvivors = pairDropIns(wbLosers, currentLbRound, allLosersMatches);
     } else {
       // Consolidate lb survivors until their count matches the incoming WB losers count
       while (lbSurvivors.length > wbLosers.length) {
@@ -56,7 +55,7 @@ export function generateLosersBracket(
 
       // Merge 1:1: each lb survivor faces a new WB loser
       currentLbRound++;
-      lbSurvivors = merge(lbSurvivors, wbLosers, currentLbRound, feedMap, allLosersMatches);
+      lbSurvivors = merge(lbSurvivors, wbLosers, currentLbRound, allLosersMatches);
     }
   }
 
@@ -69,7 +68,6 @@ export function generateLosersBracket(
   return {
     losersMatches: allLosersMatches,
     losersRounds: currentLbRound,
-    feedMap,
   };
 }
 
@@ -81,7 +79,6 @@ export function generateLosersBracket(
 function pairDropIns(
   wbMatches: BracketMatch[],
   lbRound: number,
-  feedMap: Map<string, { matchId: string; position: 'A' | 'B' }>,
   allMatches: BracketMatch[],
 ): BracketMatch[] {
   const newMatches: BracketMatch[] = [];
@@ -94,13 +91,11 @@ function pairDropIns(
     const wma = wbMatches[i]!;
     wma.loserMatchId = m.id;
     wma.loserMatchPosition = 'A';
-    feedMap.set(wma.id, { matchId: m.id, position: 'A' });
 
     const wmb = wbMatches[i + 1];
     if (wmb !== undefined) {
       wmb.loserMatchId = m.id;
       wmb.loserMatchPosition = 'B';
-      feedMap.set(wmb.id, { matchId: m.id, position: 'B' });
     }
   }
   return newMatches;
@@ -137,12 +132,17 @@ function merge(
   survivors: BracketMatch[],
   wbMatches: BracketMatch[],
   lbRound: number,
-  feedMap: Map<string, { matchId: string; position: 'A' | 'B' }>,
   allMatches: BracketMatch[],
 ): BracketMatch[] {
   const newMatches: BracketMatch[] = [];
-  const count = Math.min(survivors.length, wbMatches.length);
-  for (let i = 0; i < count; i++) {
+  if (survivors.length !== wbMatches.length) {
+    throw new Error(
+      `Cannot merge losers bracket rounds with ${survivors.length} survivors and ` +
+        `${wbMatches.length} winners-bracket losers.`,
+    );
+  }
+
+  for (let i = 0; i < wbMatches.length; i++) {
     const position = i + 1;
     const m = makeLosersMatch(lbRound, position);
     newMatches.push(m);
@@ -157,7 +157,6 @@ function merge(
     const wm = wbMatches[i]!;
     wm.loserMatchId = m.id;
     wm.loserMatchPosition = 'B';
-    feedMap.set(wm.id, { matchId: m.id, position: 'B' });
   }
   return newMatches;
 }

@@ -1,5 +1,4 @@
 import type { BracketMatch, BracketPlayer, Slot } from './types';
-import { isBye } from './types';
 import { buildSeededSlots, matchId } from './utils';
 
 // =============================================================================
@@ -45,21 +44,6 @@ export function generateWinnersBracket(players: BracketPlayer[]): {
     };
   });
 
-  // Auto-advance bye matches immediately
-  for (const match of round1Matches) {
-    if (isBye(match.playerA) && isBye(match.playerB)) {
-      // Both byes — no winner (shouldn't happen with valid input)
-      match.status = 'DONE';
-    } else if (isBye(match.playerA) || isBye(match.playerB)) {
-      // One bye — real player auto-advances
-      const winner = isBye(match.playerA)
-        ? (match.playerB as BracketPlayer)
-        : (match.playerA as BracketPlayer);
-      match.winnerId = winner.id;
-      match.status = 'DONE';
-    }
-  }
-
   // --- Build subsequent rounds ---
   const allMatches: BracketMatch[] = [...round1Matches];
   let currentRound = round1Matches;
@@ -97,18 +81,6 @@ export function generateWinnersBracket(players: BracketPlayer[]): {
       const nextMatch = nextRound[Math.floor(i / 2)]!;
       match.nextMatchId = nextMatch.id;
       match.nextMatchPosition = i % 2 === 0 ? 'A' : 'B';
-
-      // If this match is already done (bye), propagate the winner
-      if (match.status === 'DONE' && match.winnerId !== null) {
-        const winner = players.find((p) => p.id === match.winnerId) ?? null;
-        if (winner !== null) {
-          if (match.nextMatchPosition === 'A') {
-            nextMatch.playerA = winner;
-          } else {
-            nextMatch.playerB = winner;
-          }
-        }
-      }
     }
 
     currentRound = nextRound;

@@ -24,6 +24,8 @@ describe('nextPowerOfTwo', () => {
   it('returns 16 for 16', () => expect(nextPowerOfTwo(16)).toBe(16));
   it('throws on 0', () => expect(() => nextPowerOfTwo(0)).toThrow(RangeError));
   it('throws on negative', () => expect(() => nextPowerOfTwo(-1)).toThrow(RangeError));
+  it('throws on non-integers', () => expect(() => nextPowerOfTwo(1.5)).toThrow(RangeError));
+  it('throws on NaN', () => expect(() => nextPowerOfTwo(Number.NaN)).toThrow(RangeError));
 });
 
 // =============================================================================
@@ -77,6 +79,10 @@ describe('buildSeedingPairs', () => {
     const pairs = buildSeedingPairs(8);
     const seeds = pairs.flat().sort((a, b) => a - b);
     expect(seeds).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+
+  it('rejects a non-power-of-two size', () => {
+    expect(() => buildSeedingPairs(3)).toThrow(RangeError);
   });
 });
 
@@ -138,8 +144,8 @@ describe('buildSeededSlots', () => {
     const players = makePlayers(3);
     const slots = buildSeededSlots(players);
     // With 3 players, 1 bye. Seed 1 should face the bye.
-    const seedOnePair = slots.find(([a, b]) =>
-      (isPlayer(a) && a.seed === 1) || (isPlayer(b) && b.seed === 1),
+    const seedOnePair = slots.find(
+      ([a, b]) => (isPlayer(a) && a.seed === 1) || (isPlayer(b) && b.seed === 1),
     );
     expect(seedOnePair).toBeDefined();
     const [a, b] = seedOnePair!;

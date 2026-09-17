@@ -79,8 +79,6 @@ export interface Bracket {
  * Options for bracket generation.
  */
 export interface BracketOptions {
-  /** Randomize seeds if no seed is provided. Default: false */
-  randomizeSeeds?: boolean;
   /** Include grand final bracket reset match. Default: true */
   grandFinalReset?: boolean;
 }

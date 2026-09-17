@@ -6,10 +6,12 @@ import type { BracketPlayer, Slot, Bye } from './types';
 
 /** Returns the smallest power of 2 >= n. */
 export function nextPowerOfTwo(n: number): number {
-  if (n <= 0) throw new RangeError('n must be a positive integer');
+  if (!Number.isSafeInteger(n) || n <= 0) {
+    throw new RangeError('n must be a positive safe integer');
+  }
   if (n === 1) return 1;
   let p = 1;
-  while (p < n) p <<= 1;
+  while (p < n) p *= 2;
   return p;
 }
 
@@ -49,19 +51,13 @@ export function buildSeededSlots(players: BracketPlayer[]): [Slot, Slot][] {
   const sorted = [...players].sort((a, b) => a.seed - b.seed);
 
   // Fill slots: players first, then byes
-  const slots: Slot[] = [
-    ...sorted,
-    ...Array.from({ length: byes }, () => makeBye()),
-  ];
+  const slots: Slot[] = [...sorted, ...Array.from({ length: byes }, () => makeBye())];
 
   // Standard bracket seeding pattern for `size` slots.
   // Produces pairs: (1 vs size), (size/2 vs size/2+1), ...
   const pairs = buildSeedingPairs(size);
 
-  return pairs.map(([a, b]) => [
-    slots[a - 1] ?? makeBye(),
-    slots[b - 1] ?? makeBye(),
-  ]);
+  return pairs.map(([a, b]) => [slots[a - 1] ?? makeBye(), slots[b - 1] ?? makeBye()]);
 }
 
 /**
@@ -71,6 +67,9 @@ export function buildSeededSlots(players: BracketPlayer[]): [Slot, Slot][] {
  * Algorithm: recursively split the bracket.
  */
 export function buildSeedingPairs(size: number): [number, number][] {
+  if (!Number.isSafeInteger(size) || size < 1 || Math.log2(size) % 1 !== 0) {
+    throw new RangeError('size must be a positive power of two');
+  }
   if (size === 1) return [[1, 1]]; // Single player: bye match against themselves (edge case)
   if (size === 2) return [[1, 2]];
 
@@ -90,10 +89,6 @@ export function buildSeedingPairs(size: number): [number, number][] {
 /**
  * Generates a stable match ID.
  */
-export function matchId(
-  side: string,
-  round: number,
-  position: number,
-): string {
+export function matchId(side: string, round: number, position: number): string {
   return `${side}-R${round}-P${position}`;
 }

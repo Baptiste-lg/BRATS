@@ -33,8 +33,7 @@ describe('advanceWinner', () => {
       // WR1-P1 winner should advance to WR2-P1 slot A
       const wr2p1 = updated.matches.find((m) => m.id === wr1Match.nextMatchId)!;
       expect(wr2p1).toBeDefined();
-      const advancedSlot =
-        wr1Match.nextMatchPosition === 'A' ? wr2p1.playerA : wr2p1.playerB;
+      const advancedSlot = wr1Match.nextMatchPosition === 'A' ? wr2p1.playerA : wr2p1.playerB;
       expect(isPlayer(advancedSlot)).toBe(true);
       expect((advancedSlot as BracketPlayer).id).toBe((playerA as BracketPlayer).id);
     });
@@ -74,8 +73,7 @@ describe('advanceWinner', () => {
       const lbMatch = updated.matches.find((m) => m.id === wr1Match.loserMatchId)!;
       expect(lbMatch).toBeDefined();
 
-      const loserSlot =
-        wr1Match.loserMatchPosition === 'A' ? lbMatch.playerA : lbMatch.playerB;
+      const loserSlot = wr1Match.loserMatchPosition === 'A' ? lbMatch.playerA : lbMatch.playerB;
       expect(isPlayer(loserSlot)).toBe(true);
       expect((loserSlot as BracketPlayer).id).toBe(loser.id);
     });
