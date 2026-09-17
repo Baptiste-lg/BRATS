@@ -140,14 +140,17 @@ npm run test:e2e
 ## Roadmap
 
 - [x] Project setup & configuration
-- [ ] Prisma schema (User, Tournament, Player, Match, EloRecord)
-- [ ] Double-elimination bracket engine (TDD — byes, odd counts, grand final reset)
-- [ ] CI/CD pipelines + Docker
-- [ ] NextAuth (magic link + GitHub OAuth)
-- [ ] REST API routes
-- [ ] Frontend UI (bracket view, score reporting, live updates)
-- [ ] Elo system (cross-tournament ratings)
-- [ ] Playwright E2E tests
+- [x] Prisma schema (User, Tournament, Player, Match, EloRecord)
+- [x] Double-elimination bracket engine (TDD — byes, odd counts, grand final reset)
+- [x] CI/CD pipelines + Docker
+- [x] NextAuth (magic link + GitHub OAuth)
+- [x] REST API routes (tournaments, players, matches, bracket generation)
+- [x] Frontend UI (bracket view, score reporting, role-based views)
+- [x] Elo system (cross-tournament ratings with K-factor tiers)
+- [x] Playwright E2E tests
+- [ ] WebSocket / SSE live updates (no refresh)
+- [ ] Round-robin pools + playoffs
+- [ ] PNG bracket export for social media
 
 ## License
 
