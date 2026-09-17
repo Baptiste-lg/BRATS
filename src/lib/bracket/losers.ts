@@ -2,30 +2,23 @@ import type { BracketMatch } from './types';
 import { matchId } from './utils';
 
 // =============================================================================
-// Losers bracket generator
+// Losers bracket generator — correct double-elimination structure
+//
+// Algorithm:
+//   lb_survivors = []
+//   for each winners round (except the winners final):
+//     wb_losers = matches from that winners round
+//     if lb_survivors is empty:
+//       pair wb_losers -> new LB "drop-in" round
+//     else:
+//       while lb_survivors.length > wb_losers.length:
+//         pair lb_survivors -> consolidation round
+//       merge lb_survivors 1:1 with wb_losers -> new LB "merge" round
+//   while lb_survivors.length > 1:
+//     pair lb_survivors -> final consolidation
+//   lb_survivors[0] = losers finalist -> feeds grand final
 // =============================================================================
 
-/**
- * Generates the losers bracket shell for a double-elimination tournament.
- *
- * The losers bracket structure:
- * - After round R of the winners bracket, losers drop into the losers bracket.
- * - Losers bracket has (2 * winnersRounds - 2) rounds total.
- * - Odd-numbered losers rounds receive losers from winners (no prior loser faces another loser yet).
- * - Even-numbered losers rounds are "consolidation" rounds (loser vs loser).
- *
- * For N winners rounds:
- *   - Losers bracket rounds: 2*(winnersRounds-1)
- *   - Round 1 losers: from winners round 1 (size/2 matches)
- *   - Round 2 losers: winners round 1 losers vs each other (size/4 matches)
- *   - Round 3 losers: + winners round 2 losers (size/4 matches)
- *   - ...etc.
- *
- * Returns:
- *   - losers bracket matches (empty shells)
- *   - the losers bracket round count
- *   - a map from winners match ID → losers match they feed into
- */
 export function generateLosersBracket(
   winnersMatches: BracketMatch[],
   winnersRounds: number,
@@ -34,106 +27,139 @@ export function generateLosersBracket(
   losersRounds: number;
   feedMap: Map<string, { matchId: string; position: 'A' | 'B' }>;
 } {
-  if (winnersRounds === 0) {
+  if (winnersRounds <= 1) {
+    // 0 or 1 winners round means no losers bracket (2 players → direct to GF)
     return { losersMatches: [], losersRounds: 0, feedMap: new Map() };
   }
 
   const feedMap = new Map<string, { matchId: string; position: 'A' | 'B' }>();
   const allLosersMatches: BracketMatch[] = [];
+  let currentLbRound = 0; // will be incremented before each new LB round
 
-  // Build losers rounds structure
-  // Each winners round (except the final) feeds losers.
-  // Losers bracket has 2*(winnersRounds-1) rounds.
+  // Current survivors in the losers bracket (the matches whose winners are still alive)
+  let lbSurvivors: BracketMatch[] = [];
 
-  const losersRounds = Math.max(1, 2 * (winnersRounds - 1));
-
-  // Track the "live" matches in the losers bracket round by round
-  let prevLosersRound: BracketMatch[] = [];
-
+  // Process each winners round (except the last = winners final, whose winner goes to GF)
   for (let wr = 1; wr < winnersRounds; wr++) {
-    const winnersRoundMatches = winnersMatches.filter((m) => m.round === wr);
+    const wbLosers = winnersMatches.filter((m) => m.round === wr);
 
-    // --- Drop-in round (odd losers rounds: 1, 3, 5 ...) ---
-    const dropInRoundNum = 2 * wr - 1;
-    const dropCount = winnersRoundMatches.length;
-
-    // If this is the first losers round, dropIns become the round directly.
-    // Otherwise, they are matched against the survivors from the previous losers round.
-    const dropInMatches: BracketMatch[] = [];
-
-    if (prevLosersRound.length === 0) {
-      // First losers round: one match per winners-round-1 loser pair
-      for (let i = 0; i < Math.ceil(dropCount / 2); i++) {
-        const position = i + 1;
-        const m = makeLosersMatch(dropInRoundNum, position);
-        dropInMatches.push(m);
-        allLosersMatches.push(m);
-      }
-
-      // Wire winners round 1 losers → losers round 1 matches
-      for (let i = 0; i < winnersRoundMatches.length; i++) {
-        const wm = winnersRoundMatches[i]!;
-        const lm = dropInMatches[Math.floor(i / 2)]!;
-        const pos: 'A' | 'B' = i % 2 === 0 ? 'A' : 'B';
-        wm.loserMatchId = lm.id;
-        wm.loserMatchPosition = pos;
-        feedMap.set(wm.id, { matchId: lm.id, position: pos });
-      }
+    if (lbSurvivors.length === 0) {
+      // First LB round: pair the WB losers among themselves
+      currentLbRound++;
+      lbSurvivors = pairDropIns(wbLosers, currentLbRound, feedMap, allLosersMatches);
     } else {
-      // Drop-in round: winners-bracket losers meet the survivors from the previous round.
-      // prevLosersRound.length should equal winnersRoundMatches.length
-      for (let i = 0; i < prevLosersRound.length; i++) {
-        const position = i + 1;
-        const m = makeLosersMatch(dropInRoundNum, position);
-        dropInMatches.push(m);
-        allLosersMatches.push(m);
-
-        // Wire previous losers round winner → this match (slot A)
-        const prevMatch = prevLosersRound[i]!;
-        prevMatch.nextMatchId = m.id;
-        prevMatch.nextMatchPosition = 'A';
-
-        // Wire winners round loser → this match (slot B)
-        const wm = winnersRoundMatches[i];
-        if (wm !== undefined) {
-          wm.loserMatchId = m.id;
-          wm.loserMatchPosition = 'B';
-          feedMap.set(wm.id, { matchId: m.id, position: 'B' });
-        }
-      }
-    }
-
-    // --- Consolidation round (even losers rounds: 2, 4, 6 ...) ---
-    if (dropInMatches.length > 1) {
-      const consRoundNum = 2 * wr;
-      const consMatches: BracketMatch[] = [];
-
-      for (let i = 0; i < Math.ceil(dropInMatches.length / 2); i++) {
-        const position = i + 1;
-        const m = makeLosersMatch(consRoundNum, position);
-        consMatches.push(m);
-        allLosersMatches.push(m);
-
-        // Wire drop-in matches to consolidation
-        const ma = dropInMatches[i * 2]!;
-        const mb = dropInMatches[i * 2 + 1];
-
-        ma.nextMatchId = m.id;
-        ma.nextMatchPosition = 'A';
-        if (mb !== undefined) {
-          mb.nextMatchId = m.id;
-          mb.nextMatchPosition = 'B';
-        }
+      // Consolidate lb survivors until their count matches the incoming WB losers count
+      while (lbSurvivors.length > wbLosers.length) {
+        currentLbRound++;
+        lbSurvivors = consolidate(lbSurvivors, currentLbRound, allLosersMatches);
       }
 
-      prevLosersRound = consMatches;
-    } else {
-      prevLosersRound = dropInMatches;
+      // Merge 1:1: each lb survivor faces a new WB loser
+      currentLbRound++;
+      lbSurvivors = merge(lbSurvivors, wbLosers, currentLbRound, feedMap, allLosersMatches);
     }
   }
 
-  // The last losers round feeds the grand final (wired at top level)
-  return { losersMatches: allLosersMatches, losersRounds, feedMap };
+  // Final consolidation until 1 survivor remains (= losers finalist)
+  while (lbSurvivors.length > 1) {
+    currentLbRound++;
+    lbSurvivors = consolidate(lbSurvivors, currentLbRound, allLosersMatches);
+  }
+
+  return {
+    losersMatches: allLosersMatches,
+    losersRounds: currentLbRound,
+    feedMap,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Pairs winners-bracket losers into a new LB round (first drop-in). */
+function pairDropIns(
+  wbMatches: BracketMatch[],
+  lbRound: number,
+  feedMap: Map<string, { matchId: string; position: 'A' | 'B' }>,
+  allMatches: BracketMatch[],
+): BracketMatch[] {
+  const newMatches: BracketMatch[] = [];
+  for (let i = 0; i < wbMatches.length; i += 2) {
+    const position = Math.floor(i / 2) + 1;
+    const m = makeLosersMatch(lbRound, position);
+    newMatches.push(m);
+    allMatches.push(m);
+
+    const wma = wbMatches[i]!;
+    wma.loserMatchId = m.id;
+    wma.loserMatchPosition = 'A';
+    feedMap.set(wma.id, { matchId: m.id, position: 'A' });
+
+    const wmb = wbMatches[i + 1];
+    if (wmb !== undefined) {
+      wmb.loserMatchId = m.id;
+      wmb.loserMatchPosition = 'B';
+      feedMap.set(wmb.id, { matchId: m.id, position: 'B' });
+    }
+  }
+  return newMatches;
+}
+
+/** Pairs LB survivors against each other (consolidation round). */
+function consolidate(
+  survivors: BracketMatch[],
+  lbRound: number,
+  allMatches: BracketMatch[],
+): BracketMatch[] {
+  const newMatches: BracketMatch[] = [];
+  for (let i = 0; i < survivors.length; i += 2) {
+    const position = Math.floor(i / 2) + 1;
+    const m = makeLosersMatch(lbRound, position);
+    newMatches.push(m);
+    allMatches.push(m);
+
+    const sa = survivors[i]!;
+    sa.nextMatchId = m.id;
+    sa.nextMatchPosition = 'A';
+
+    const sb = survivors[i + 1];
+    if (sb !== undefined) {
+      sb.nextMatchId = m.id;
+      sb.nextMatchPosition = 'B';
+    }
+  }
+  return newMatches;
+}
+
+/** Merges LB survivors 1:1 with incoming WB losers (merge round). */
+function merge(
+  survivors: BracketMatch[],
+  wbMatches: BracketMatch[],
+  lbRound: number,
+  feedMap: Map<string, { matchId: string; position: 'A' | 'B' }>,
+  allMatches: BracketMatch[],
+): BracketMatch[] {
+  const newMatches: BracketMatch[] = [];
+  const count = Math.min(survivors.length, wbMatches.length);
+  for (let i = 0; i < count; i++) {
+    const position = i + 1;
+    const m = makeLosersMatch(lbRound, position);
+    newMatches.push(m);
+    allMatches.push(m);
+
+    // LB survivor fills slot A
+    const surv = survivors[i]!;
+    surv.nextMatchId = m.id;
+    surv.nextMatchPosition = 'A';
+
+    // WB loser fills slot B
+    const wm = wbMatches[i]!;
+    wm.loserMatchId = m.id;
+    wm.loserMatchPosition = 'B';
+    feedMap.set(wm.id, { matchId: m.id, position: 'B' });
+  }
+  return newMatches;
 }
 
 function makeLosersMatch(round: number, position: number): BracketMatch {
