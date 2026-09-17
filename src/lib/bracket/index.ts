@@ -125,3 +125,4 @@ export function generateBracket(
 // Re-export types for convenience
 export type { Bracket, BracketMatch, BracketPlayer, BracketOptions } from './types';
 export { isBye, isPlayer } from './types';
+export { advanceWinner } from './advance';
