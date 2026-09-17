@@ -51,7 +51,9 @@ export function calculateElo(input: EloInput): EloResult {
   return {
     newWinnerElo,
     newLoserElo,
-    winnerDelta,
-    loserDelta,
+    // Return the applied deltas, not the theoretical deltas. This keeps the
+    // result consistent with the floor applied above and with EloRecord.delta.
+    winnerDelta: newWinnerElo - winnerElo,
+    loserDelta: newLoserElo - loserElo,
   };
 }

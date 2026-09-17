@@ -24,33 +24,39 @@ export async function applyEloUpdate(
   tournamentId: string,
 ): Promise<void> {
   const [winner, loser] = await Promise.all([
-    tx.player.findUnique({
-      where: { id: winnerId },
-      include: {
-        eloRecords: { orderBy: { createdAt: 'desc' }, take: 1 },
-        _count: { select: { eloRecords: true } },
-      },
-    }),
-    tx.player.findUnique({
-      where: { id: loserId },
-      include: {
-        eloRecords: { orderBy: { createdAt: 'desc' }, take: 1 },
-        _count: { select: { eloRecords: true } },
-      },
-    }),
+    tx.player.findUnique({ where: { id: winnerId } }),
+    tx.player.findUnique({ where: { id: loserId } }),
   ]);
 
-  if (!winner || !loser) return;
+  if (!winner || !loser) {
+    throw new Error('Cannot update Elo for a match with a missing player');
+  }
+
+  // Player IDs are tournament-scoped. EloRecord.playerName is the global
+  // identity used by this application, so history must be read by name rather
+  // than by the current tournament's Player.id.
+  const [winnerLatest, loserLatest, winnerGames, loserGames] = await Promise.all([
+    tx.eloRecord.findFirst({
+      where: { playerName: winner.name },
+      orderBy: { createdAt: 'desc' },
+    }),
+    tx.eloRecord.findFirst({
+      where: { playerName: loser.name },
+      orderBy: { createdAt: 'desc' },
+    }),
+    tx.eloRecord.count({ where: { playerName: winner.name } }),
+    tx.eloRecord.count({ where: { playerName: loser.name } }),
+  ]);
 
   // Get current Elo from the last record, or use default
-  const winnerCurrentElo = winner.eloRecords[0]?.eloAfter ?? DEFAULT_ELO;
-  const loserCurrentElo = loser.eloRecords[0]?.eloAfter ?? DEFAULT_ELO;
+  const winnerCurrentElo = winnerLatest?.eloAfter ?? DEFAULT_ELO;
+  const loserCurrentElo = loserLatest?.eloAfter ?? DEFAULT_ELO;
 
   const result = calculateElo({
     winnerElo: winnerCurrentElo,
     loserElo: loserCurrentElo,
-    winnerGamesPlayed: winner._count.eloRecords,
-    loserGamesPlayed: loser._count.eloRecords,
+    winnerGamesPlayed: winnerGames,
+    loserGamesPlayed: loserGames,
   });
 
   await Promise.all([

@@ -116,6 +116,11 @@ describe('calculateElo', () => {
     expect(r.newLoserElo).toBeGreaterThanOrEqual(100);
   });
 
+  it('reports the applied delta when the floor clamps a rating', () => {
+    const r = calculateElo({ winnerElo: 2800, loserElo: 100 });
+    expect(r.loserDelta).toBe(r.newLoserElo - 100);
+  });
+
   it('default Elo is 1000', () => {
     expect(DEFAULT_ELO).toBe(1000);
   });
