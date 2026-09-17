@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { ok, handleError } from '@/lib/api';
 import { requireAuth } from '@/lib/session';
 import { ValidationError, NotFoundError, ForbiddenError } from '@/lib/errors';
+import { applyEloUpdate } from '@/lib/elo/service';
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -46,7 +47,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
 
     if (!winnerId) throw new ValidationError('Cannot determine winner: missing player');
 
-    // Advance winner and drop loser in a single transaction
+    // Advance winner, drop loser, and update Elo in a single transaction
     await db.$transaction(async (tx) => {
       // Mark match as done
       await tx.match.update({
@@ -57,6 +58,11 @@ export async function POST(_request: NextRequest, { params }: Params) {
           validatedById: user.id,
         },
       });
+
+      // Update Elo ratings if both players are identified
+      if (winnerId && loserId) {
+        await applyEloUpdate(tx, winnerId, loserId, match.tournamentId);
+      }
 
       // Find the next match for the winner (same tournament, next round)
       const allMatches = await tx.match.findMany({
