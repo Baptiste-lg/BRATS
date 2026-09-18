@@ -203,30 +203,20 @@ export async function POST(_request: NextRequest, { params }: Params) {
         changed,
       );
 
-      // Grand-final reset is conditional: the losers-bracket champion occupies
-      // slot B in GF1 and only activates reset after defeating slot A.
-      if (
-        current.bracketSide === 'GRAND_FINAL' &&
-        current.round === 1 &&
-        current.nextMatchId !== null &&
-        winnerId === current.playerBId
-      ) {
-        assignLinkedSlot(
-          mutableMatches,
-          current.nextMatchId,
-          'A',
-          current.playerAId,
-          false,
-          changed,
-        );
-        assignLinkedSlot(
-          mutableMatches,
-          current.nextMatchId,
-          'B',
-          current.playerBId,
-          false,
-          changed,
-        );
+      // Grand-final reset is conditional — branch on who wins GF1.
+      if (current.bracketSide === 'GRAND_FINAL' && current.round === 1 && current.nextMatchId !== null) {
+        if (winnerId === current.playerBId) {
+          // LB champion upset the WB champion: activate the reset
+          assignLinkedSlot(mutableMatches, current.nextMatchId, 'A', current.playerAId, false, changed);
+          assignLinkedSlot(mutableMatches, current.nextMatchId, 'B', current.playerBId, false, changed);
+        } else {
+          // WB champion wins cleanly: reset is never played
+          const resetMatch = mutableMatches.get(current.nextMatchId);
+          if (resetMatch !== undefined) {
+            resetMatch.status = 'DONE';
+            changed.add(resetMatch.id);
+          }
+        }
       }
 
       resolveAutomaticMatches(mutableMatches, changed);

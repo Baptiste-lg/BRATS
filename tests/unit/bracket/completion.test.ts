@@ -47,15 +47,12 @@ function advanceUntilGrandFinalReady(bracket: Bracket): Bracket {
 
 describe('bracket completion invariants', () => {
   it.each([2, 3, 4, 5, 6, 7, 8])(
-    '%i-player brackets have no blocked match after all real matches are advanced',
+    '%i-player brackets are fully DONE when the WB champion wins every match',
     (playerCount) => {
       const bracket = advanceFirstReady(generateBracket(makePlayers(playerCount)));
       const pending = bracket.matches.filter((match) => match.status === 'PENDING');
-
-      expect(pending).toHaveLength(1);
-      expect(pending[0]?.id).toBe('GRAND_FINAL-R2-P1');
-      expect(pending[0]?.playerA).toBeNull();
-      expect(pending[0]?.playerB).toBeNull();
+      // WB champion (slot A) wins GF1 → reset is skipped → no unresolved matches remain
+      expect(pending).toHaveLength(0);
     },
   );
 

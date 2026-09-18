@@ -42,10 +42,9 @@ export function advanceWinner(bracket: Bracket, matchId: string, winnerId: strin
     throw new Error(`Match ${matchId} is not ready for a real result.`);
   }
 
-  if (playerA?.id !== winnerId && playerB?.id !== winnerId) {
+  if (playerA.id !== winnerId && playerB.id !== winnerId) {
     throw new Error(
-      `Player ${winnerId} is not in match ${matchId}. ` +
-        `Players: ${playerA?.id ?? 'null'}, ${playerB?.id ?? 'null'}`,
+      `Player ${winnerId} is not in match ${matchId}. Players: ${playerA.id}, ${playerB.id}`,
     );
   }
 
@@ -83,19 +82,19 @@ export function advanceWinner(bracket: Bracket, matchId: string, winnerId: strin
     }
   }
 
-  // The reset is conditional: it only becomes active when the losers-bracket
-  // champion defeats the winners-bracket champion in Grand Final 1. The
-  // normal nextMatchPosition field cannot represent this two-player handoff.
-  if (
-    match.side === 'GRAND_FINAL' &&
-    match.round === 1 &&
-    match.nextMatchId !== null &&
-    winner.id === playerB.id
-  ) {
+  // Grand Final 1 has a conditional reset that the normal nextMatchPosition
+  // field cannot represent. Branch on who wins.
+  if (match.side === 'GRAND_FINAL' && match.round === 1 && match.nextMatchId !== null) {
     const resetMatch = matchMap.get(match.nextMatchId);
     if (resetMatch !== undefined) {
-      resetMatch.playerA = playerA;
-      resetMatch.playerB = playerB;
+      if (winner.id === playerB.id) {
+        // LB champion upset the WB champion: activate the reset
+        resetMatch.playerA = playerA;
+        resetMatch.playerB = playerB;
+      } else {
+        // WB champion wins cleanly: reset is never played
+        resetMatch.status = 'DONE';
+      }
     }
   }
 

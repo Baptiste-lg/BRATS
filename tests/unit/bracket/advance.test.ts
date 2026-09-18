@@ -105,6 +105,59 @@ describe('advanceWinner', () => {
     });
   });
 
+  describe('grand final reset', () => {
+    function playAllUntilGF1(players: BracketPlayer[]) {
+      let b = generateBracket(players);
+      // Advance every non-GF match by always picking slot A as winner
+      let changed = true;
+      while (changed) {
+        changed = false;
+        const pending = b.matches.find(
+          (m) => m.side !== 'GRAND_FINAL' && m.status === 'PENDING' && isPlayer(m.playerA) && isPlayer(m.playerB),
+        );
+        if (pending) {
+          b = advanceWinner(b, pending.id, (pending.playerA as BracketPlayer).id);
+          changed = true;
+        }
+      }
+      return b;
+    }
+
+    it('reset match is DONE when WB champion wins GF1', () => {
+      const players = makePlayers(4);
+      let b = playAllUntilGF1(players);
+      const gf1 = b.matches.find((m) => m.side === 'GRAND_FINAL' && m.round === 1)!;
+      expect(isPlayer(gf1.playerA)).toBe(true);
+      expect(isPlayer(gf1.playerB)).toBe(true);
+
+      // WB champion is slot A — they win
+      const wbChampion = gf1.playerA as BracketPlayer;
+      b = advanceWinner(b, gf1.id, wbChampion.id);
+
+      const reset = b.matches.find((m) => m.side === 'GRAND_FINAL' && m.round === 2);
+      expect(reset).toBeDefined();
+      expect(reset!.status).toBe('DONE');
+    });
+
+    it('reset match is PENDING with both players when LB champion wins GF1', () => {
+      const players = makePlayers(4);
+      let b = playAllUntilGF1(players);
+      const gf1 = b.matches.find((m) => m.side === 'GRAND_FINAL' && m.round === 1)!;
+      expect(isPlayer(gf1.playerA)).toBe(true);
+      expect(isPlayer(gf1.playerB)).toBe(true);
+
+      // LB champion is slot B — they win
+      const lbChampion = gf1.playerB as BracketPlayer;
+      b = advanceWinner(b, gf1.id, lbChampion.id);
+
+      const reset = b.matches.find((m) => m.side === 'GRAND_FINAL' && m.round === 2)!;
+      expect(reset).toBeDefined();
+      expect(reset.status).toBe('PENDING');
+      expect(isPlayer(reset.playerA)).toBe(true);
+      expect(isPlayer(reset.playerB)).toBe(true);
+    });
+  });
+
   describe('immutability', () => {
     it('returns a new Bracket object (does not mutate the original)', () => {
       const players = makePlayers(8);
