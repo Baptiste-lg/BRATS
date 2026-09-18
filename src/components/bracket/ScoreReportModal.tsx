@@ -86,6 +86,7 @@ export function ScoreReportModal({
                 type="number"
                 min={0}
                 max={2147483647}
+                step={1}
                 value={scoreA}
                 onChange={(e) => setScoreA(e.target.value)}
                 className="rounded border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-mono text-white outline-none focus:border-brand-500"
@@ -98,6 +99,7 @@ export function ScoreReportModal({
                 type="number"
                 min={0}
                 max={2147483647}
+                step={1}
                 value={scoreB}
                 onChange={(e) => setScoreB(e.target.value)}
                 className="rounded border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-mono text-white outline-none focus:border-brand-500"
