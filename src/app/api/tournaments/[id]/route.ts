@@ -4,6 +4,8 @@ import { ok, noContent, handleError, parseBody } from '@/lib/api';
 import { requireAuth } from '@/lib/session';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
 
+const VALID_STATUSES = new Set(['DRAFT', 'LIVE', 'DONE']);
+
 interface Params {
   params: Promise<{ id: string }>;
 }
@@ -57,8 +59,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     if (!tournament) throw new NotFoundError('Tournament not found');
     if (tournament.organizerId !== user.id) throw new ForbiddenError('Not your tournament');
-
-    const VALID_STATUSES = new Set(['DRAFT', 'LIVE', 'DONE']);
 
     const body = await parseBody(request, (raw) => {
       const b = raw as Record<string, unknown>;

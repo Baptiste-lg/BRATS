@@ -5,6 +5,8 @@ import { requireAuth } from '@/lib/session';
 import { generateTournamentCode } from '@/lib/tournament-code';
 import { ValidationError } from '@/lib/errors';
 
+const VALID_FORMATS = new Set(['DOUBLE_ELIMINATION', 'SINGLE_ELIMINATION']);
+
 // GET /api/tournaments — list tournaments for the authenticated organizer
 export async function GET() {
   try {
@@ -26,8 +28,6 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
-
-    const VALID_FORMATS = new Set(['DOUBLE_ELIMINATION', 'SINGLE_ELIMINATION']);
 
     const body = await parseBody(request, (raw) => {
       const b = raw as Record<string, unknown>;
