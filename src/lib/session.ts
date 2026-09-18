@@ -2,8 +2,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { AuthError } from '@/lib/errors';
 
-export { AuthError } from '@/lib/errors';
-
 // =============================================================================
 // Server-side session helpers
 // =============================================================================

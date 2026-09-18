@@ -1,7 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ok, handleError } from '@/lib/api';
-import { NotFoundError } from '@/lib/errors';
+import { NotFoundError, ValidationError } from '@/lib/errors';
+import { isValidTournamentCode } from '@/lib/tournament-code';
 
 interface Params {
   params: Promise<{ code: string }>;
@@ -12,6 +13,8 @@ interface Params {
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
     const { code } = await params;
+
+    if (!isValidTournamentCode(code)) throw new ValidationError('Invalid tournament code');
 
     const tournament = await db.tournament.findUnique({
       where: { code },
