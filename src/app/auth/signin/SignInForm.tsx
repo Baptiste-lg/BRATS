@@ -13,14 +13,23 @@ export function SignInForm({ providers }: Props) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleEmailSignIn(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
     setLoading(true);
-    await signIn('email', { email: email.trim(), redirect: false });
-    setSent(true);
-    setLoading(false);
+    setError(null);
+    try {
+      const result = await signIn('email', { email: email.trim(), redirect: false });
+      if (result?.error) {
+        setError('Could not send magic link. Please try again.');
+      } else {
+        setSent(true);
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (sent) {
@@ -35,6 +44,9 @@ export function SignInForm({ providers }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      {error && (
+        <p className="rounded-md bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
+      )}
       {/* Email magic link */}
       <form onSubmit={handleEmailSignIn} className="flex flex-col gap-3">
         <input

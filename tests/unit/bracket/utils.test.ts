@@ -38,7 +38,7 @@ describe('byeCount', () => {
   it('1 bye for 3 players', () => expect(byeCount(3)).toBe(1));
   it('0 byes for 4 players', () => expect(byeCount(4)).toBe(0));
   it('0 byes for 1 player', () => expect(byeCount(1)).toBe(0));
-  it('2 byes for 2 players', () => expect(byeCount(2)).toBe(0));
+  it('0 byes for 2 players', () => expect(byeCount(2)).toBe(0));
 });
 
 // =============================================================================
