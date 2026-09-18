@@ -101,6 +101,7 @@ model Player {
   eloRecords  EloRecord[]
 
   @@index([tournamentId])
+  @@index([userId])
   @@index([token])
 }
 
