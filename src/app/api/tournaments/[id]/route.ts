@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { ok, noContent, handleError, parseBody } from '@/lib/api';
 import { requireAuth } from '@/lib/session';
-import { NotFoundError, ForbiddenError } from '@/lib/errors';
+import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/errors';
 
 interface Params {
   params: Promise<{ id: string }>;

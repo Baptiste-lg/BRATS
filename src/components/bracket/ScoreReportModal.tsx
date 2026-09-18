@@ -47,7 +47,7 @@ export function ScoreReportModal({
 
     try {
       const url = token
-        ? `/api/matches/${matchId}/report?token=${token}`
+        ? `/api/matches/${matchId}/report?token=${encodeURIComponent(token)}`
         : `/api/matches/${matchId}/report`;
 
       const res = await fetch(url, {
@@ -85,6 +85,7 @@ export function ScoreReportModal({
               <input
                 type="number"
                 min={0}
+                max={2147483647}
                 value={scoreA}
                 onChange={(e) => setScoreA(e.target.value)}
                 className="rounded border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-mono text-white outline-none focus:border-brand-500"
@@ -96,6 +97,7 @@ export function ScoreReportModal({
               <input
                 type="number"
                 min={0}
+                max={2147483647}
                 value={scoreB}
                 onChange={(e) => setScoreB(e.target.value)}
                 className="rounded border border-white/10 bg-white/5 px-3 py-2 text-center text-lg font-mono text-white outline-none focus:border-brand-500"

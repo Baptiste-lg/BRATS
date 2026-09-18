@@ -18,6 +18,5 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/api/tournaments/:path*',
-    '/api/players/:path*',
   ],
 };

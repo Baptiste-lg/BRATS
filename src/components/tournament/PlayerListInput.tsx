@@ -39,7 +39,7 @@ export function PlayerListInput({ onPlayersChange }: Props) {
       <label className="text-sm font-medium text-gray-300">
         Players{' '}
         <span className="text-gray-500">
-          ({count} entered{count !== 0 && count !== 1 ? '' : ''})
+          ({count} entered)
         </span>
       </label>
       <textarea
