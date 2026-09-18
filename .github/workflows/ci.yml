@@ -20,13 +20,11 @@ concurrency:
 jobs:
   # ---------------------------------------------------------------------------
   # Job 1 — Code Quality & Security
-  # Runs ESLint, Prettier, TypeScript check, npm audit.
-  # Auto-fixes formatting issues and commits them back.
+  # Runs ESLint, Prettier, TypeScript check, npm audit, and auto-fixes code style.
   # ---------------------------------------------------------------------------
   quality:
     name: Code Quality & Security
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[AUTO]')"
     permissions:
       contents: write
 
@@ -55,11 +53,17 @@ jobs:
       - name: Auto-fix Prettier
         run: npm run format || true
 
-      - name: Commit auto-fixes (if any)
+      - name: Commit auto-fixes on main pushes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
+          if git diff --quiet; then
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet || (git add -A && git commit -m "[AUTO] eslint --fix + prettier --write" && git push) || true
+          git add src tests
+          git commit -m "[AUTO] eslint --fix + prettier --write"
+          git push
 
       - name: Verify ESLint (no remaining errors)
         run: npm run lint
@@ -108,8 +112,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Job 3 — Deploy to Vercel
-  # Deploys to preview on PR, production on main push.
-  # Requires VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID secrets.
+  # Deploys to production on main/tag pushes when the Vercel secrets exist.
   # ---------------------------------------------------------------------------
   deploy:
     name: Deploy to Vercel
@@ -118,35 +121,90 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
 
     steps:
+      - name: Check Vercel configuration
+        id: vercel-config
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          missing=()
+          [[ -z "$VERCEL_TOKEN" ]] && missing+=(VERCEL_TOKEN)
+          [[ -z "$VERCEL_ORG_ID" ]] && missing+=(VERCEL_ORG_ID)
+          [[ -z "$VERCEL_PROJECT_ID" ]] && missing+=(VERCEL_PROJECT_ID)
+
+          if ((${#missing[@]} > 0)); then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Vercel deployment skipped; missing repository secrets: ${missing[*]}"
+            {
+              echo "## Vercel deployment skipped"
+              echo
+              echo "Configure the missing repository secrets before enabling production deploys: \`${missing[*]}\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
+        if: steps.vercel-config.outputs.configured == 'true'
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
+        if: steps.vercel-config.outputs.configured == 'true'
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
+        if: steps.vercel-config.outputs.configured == 'true'
         run: npm ci
 
       - name: Install Vercel CLI
-        run: npm install -g vercel@latest
+        if: steps.vercel-config.outputs.configured == 'true'
+        run: npm install --global vercel@59.23.1
 
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        if: steps.vercel-config.outputs.configured == 'true'
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      - name: Validate Vercel runtime environment
+        if: steps.vercel-config.outputs.configured == 'true'
+        shell: bash
+        run: |
+          missing=()
+          # DIRECT_URL is only needed by Prisma migration commands, not by the
+          # application build or runtime deployment.
+          for key in NEXTAUTH_SECRET DATABASE_URL; do
+            if ! grep -q "^${key}=" .env.production.local 2>/dev/null; then
+              missing+=("$key")
+            fi
+          done
+
+          if ((${#missing[@]} > 0)); then
+            echo "::error::Vercel production environment is missing: ${missing[*]}"
+            exit 1
+          fi
+
       - name: Build project artifacts
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        if: steps.vercel-config.outputs.configured == 'true'
+        run: vercel build --prod --token="$VERCEL_TOKEN"
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deploy to production
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        if: steps.vercel-config.outputs.configured == 'true'
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

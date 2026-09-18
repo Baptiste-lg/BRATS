@@ -47,6 +47,10 @@ RUN npx prisma generate
 
 # Build Next.js (standalone output for minimal image)
 ENV NEXT_TELEMETRY_DISABLED=1
+# NextAuth validates its secret while Next.js evaluates the auth route at build
+# time. The runtime container must still receive the real secret via its env.
+ARG NEXTAUTH_SECRET=brats-build-only-secret
+ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
 RUN npm run build
 
 # =============================================================================
