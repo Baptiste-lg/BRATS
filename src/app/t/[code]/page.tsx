@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Navbar } from '@/components/ui/Navbar';
@@ -11,19 +12,9 @@ interface Props {
   searchParams: Promise<{ token?: string }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { code } = await params;
-  const tournament = await db.tournament.findUnique({ where: { code } });
-  return {
-    title: tournament?.name ?? 'Tournament',
-  };
-}
-
-export default async function TournamentPage({ params, searchParams }: Props) {
-  const { code } = await params;
-  const { token } = await searchParams;
-
-  const tournament = await db.tournament.findUnique({
+// Cached per-request so generateMetadata and the page handler share one query.
+const getTournament = cache((code: string) =>
+  db.tournament.findUnique({
     where: { code },
     include: {
       players: { orderBy: { seed: 'asc' } },
@@ -36,7 +27,22 @@ export default async function TournamentPage({ params, searchParams }: Props) {
         },
       },
     },
-  });
+  }),
+);
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { code } = await params;
+  const tournament = await getTournament(code);
+  return {
+    title: tournament?.name ?? 'Tournament',
+  };
+}
+
+export default async function TournamentPage({ params, searchParams }: Props) {
+  const { code } = await params;
+  const { token } = await searchParams;
+
+  const tournament = await getTournament(code);
 
   if (!tournament) notFound();
 

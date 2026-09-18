@@ -1,4 +1,4 @@
-import type { Tournament, Player, Match } from '@prisma/client';
+import type { Tournament, Player, Match, BracketSide, MatchStatus } from '@prisma/client';
 
 // Tournament with all relations loaded
 export type TournamentWithRelations = Tournament & {
@@ -32,13 +32,13 @@ export type PublicMatch = {
   id: string;
   round: number;
   position: number;
-  bracketSide: string;
+  bracketSide: BracketSide;
   playerA: { name: string } | null;
   playerB: { name: string } | null;
   scoreA: number | null;
   scoreB: number | null;
   winner: { name: string } | null;
-  status: string;
+  status: MatchStatus;
 };
 
 // Role enum for the /t/[code] page

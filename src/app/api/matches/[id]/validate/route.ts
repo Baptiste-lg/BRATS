@@ -166,9 +166,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
         throw new ValidationError('Match was already validated');
       }
 
-      if (loserId !== null) {
-        await applyEloUpdate(tx, winnerId, loserId, match.tournamentId);
-      }
+      await applyEloUpdate(tx, winnerId, loserId, match.tournamentId);
 
       const persistedMatches = (await tx.match.findMany({
         where: { tournamentId: match.tournamentId },
