@@ -13,8 +13,14 @@ export function CreateTournamentForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) { setError('Tournament name is required'); return; }
-    if (players.length < 2) { setError('Need at least 2 players'); return; }
+    if (!name.trim()) {
+      setError('Tournament name is required');
+      return;
+    }
+    if (players.length < 2) {
+      setError('Need at least 2 players');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -26,8 +32,8 @@ export function CreateTournamentForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim() }),
       });
-      if (!tRes.ok) throw new Error((await tRes.json() as { error: string }).error);
-      const { data: tournament } = await tRes.json() as { data: { id: string; code: string } };
+      if (!tRes.ok) throw new Error(((await tRes.json()) as { error: string }).error);
+      const { data: tournament } = (await tRes.json()) as { data: { id: string; code: string } };
 
       // 2. Add players
       const pRes = await fetch(`/api/tournaments/${tournament.id}/players`, {
@@ -35,13 +41,13 @@ export function CreateTournamentForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ players: players.map((name_) => ({ name: name_ })) }),
       });
-      if (!pRes.ok) throw new Error((await pRes.json() as { error: string }).error);
+      if (!pRes.ok) throw new Error(((await pRes.json()) as { error: string }).error);
 
       // 3. Generate bracket
       const bRes = await fetch(`/api/tournaments/${tournament.id}/bracket`, {
         method: 'POST',
       });
-      if (!bRes.ok) throw new Error((await bRes.json() as { error: string }).error);
+      if (!bRes.ok) throw new Error(((await bRes.json()) as { error: string }).error);
 
       // 4. Redirect to the public bracket page
       router.push(`/t/${tournament.code}`);

@@ -8,9 +8,7 @@ export function UserMenu() {
   const { data: session, status } = useSession();
 
   if (status === 'loading') {
-    return (
-      <div className="h-8 w-24 animate-pulse rounded-md bg-white/10" />
-    );
+    return <div className="h-8 w-24 animate-pulse rounded-md bg-white/10" />;
   }
 
   if (!session) {
@@ -26,13 +24,8 @@ export function UserMenu() {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-sm text-gray-400">
-        {session.user.name ?? session.user.email}
-      </span>
-      <Link
-        href="/dashboard"
-        className="text-sm text-gray-300 transition hover:text-white"
-      >
+      <span className="text-sm text-gray-400">{session.user.name ?? session.user.email}</span>
+      <Link href="/dashboard" className="text-sm text-gray-300 transition hover:text-white">
         Dashboard
       </Link>
       <SignOutButton className="text-sm text-gray-400 transition hover:text-white" />

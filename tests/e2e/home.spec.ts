@@ -29,7 +29,7 @@ test.describe('Health check', () => {
   test('GET /api/health returns 200 with status ok', async ({ request }) => {
     const response = await request.get('/api/health');
     expect(response.status()).toBe(200);
-    const body = await response.json() as { status: string };
+    const body = (await response.json()) as { status: string };
     expect(body.status).toBe('ok');
   });
 });

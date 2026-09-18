@@ -52,9 +52,7 @@ export default async function DashboardPage() {
                         {t._count.players} players · {t.status.toLowerCase()}
                       </p>
                     </div>
-                    <span className="text-xs text-gray-500">
-                      /t/{t.code}
-                    </span>
+                    <span className="text-xs text-gray-500">/t/{t.code}</span>
                   </Link>
                 </li>
               ))}

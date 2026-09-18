@@ -17,7 +17,7 @@ function requireEnv(key: string): string {
 
 export const authOptions: NextAuthOptions = {
   // Use Prisma as the session/account store
-  adapter: PrismaAdapter(db) as NextAuthOptions['adapter'],
+  adapter: PrismaAdapter(db) as NonNullable<NextAuthOptions['adapter']>,
 
   providers: [
     // Magic link email — no password required

@@ -5,9 +5,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Standalone output for Docker — packages only what's needed at runtime
   output: 'standalone',
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true,
 };
 
 export default nextConfig;

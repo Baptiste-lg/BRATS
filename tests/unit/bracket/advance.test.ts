@@ -113,7 +113,11 @@ describe('advanceWinner', () => {
       while (changed) {
         changed = false;
         const pending = b.matches.find(
-          (m) => m.side !== 'GRAND_FINAL' && m.status === 'PENDING' && isPlayer(m.playerA) && isPlayer(m.playerB),
+          (m) =>
+            m.side !== 'GRAND_FINAL' &&
+            m.status === 'PENDING' &&
+            isPlayer(m.playerA) &&
+            isPlayer(m.playerB),
         );
         if (pending) {
           b = advanceWinner(b, pending.id, (pending.playerA as BracketPlayer).id);

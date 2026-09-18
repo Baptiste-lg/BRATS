@@ -37,10 +37,7 @@ export function PlayerListInput({ onPlayersChange }: Props) {
   return (
     <div className="flex flex-col gap-2">
       <label className="text-sm font-medium text-gray-300">
-        Players{' '}
-        <span className="text-gray-500">
-          ({count} entered)
-        </span>
+        Players <span className="text-gray-500">({count} entered)</span>
       </label>
       <textarea
         value={raw}

@@ -6,9 +6,9 @@
 export const DEFAULT_ELO = 1000;
 
 /** K-factor: determines how much a single match can change the rating. */
-export const K_FACTOR_NEW = 40;    // < 30 games played
-export const K_FACTOR_MID = 20;    // 30–100 games
-export const K_FACTOR_EST = 10;    // > 100 games (established player)
+export const K_FACTOR_NEW = 40; // < 30 games played
+export const K_FACTOR_MID = 20; // 30–100 games
+export const K_FACTOR_EST = 10; // > 100 games (established player)
 
 /** Elo rating (integer). */
 export type EloRating = number;

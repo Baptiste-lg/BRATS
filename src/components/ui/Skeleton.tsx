@@ -3,12 +3,7 @@ interface Props {
 }
 
 export function Skeleton({ className = '' }: Props) {
-  return (
-    <div
-      className={`animate-pulse rounded-md bg-white/10 ${className}`}
-      aria-hidden="true"
-    />
-  );
+  return <div className={`animate-pulse rounded-md bg-white/10 ${className}`} aria-hidden="true" />;
 }
 
 export function MatchCardSkeleton() {

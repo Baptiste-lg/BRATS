@@ -13,9 +13,9 @@ interface Props {
  * works in any Client Component.
  */
 export function SessionProvider({ children, session }: Props) {
-  return (
-    <NextAuthSessionProvider session={session}>
-      {children}
-    </NextAuthSessionProvider>
-  );
+  if (session === undefined) {
+    return <NextAuthSessionProvider>{children}</NextAuthSessionProvider>;
+  }
+
+  return <NextAuthSessionProvider session={session}>{children}</NextAuthSessionProvider>;
 }

@@ -13,10 +13,7 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-6">
-          <Link
-            href="/dashboard"
-            className="text-sm text-gray-400 transition hover:text-white"
-          >
+          <Link href="/dashboard" className="text-sm text-gray-400 transition hover:text-white">
             Dashboard
           </Link>
           <UserMenu />

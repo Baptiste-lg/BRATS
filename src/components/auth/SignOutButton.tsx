@@ -8,10 +8,7 @@ interface Props {
 
 export function SignOutButton({ className }: Props) {
   return (
-    <button
-      onClick={() => signOut({ callbackUrl: '/' })}
-      className={className}
-    >
+    <button onClick={() => signOut({ callbackUrl: '/' })} className={className}>
       Sign out
     </button>
   );

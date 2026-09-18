@@ -2,7 +2,8 @@
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["debian-openssl-3.0.x", "rhel-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -17,8 +18,8 @@ datasource db {
 
 enum TournamentStatus {
   DRAFT // Created, players being added
-  LIVE  // Bracket generated, matches ongoing
-  DONE  // All matches resolved
+  LIVE // Bracket generated, matches ongoing
+  DONE // All matches resolved
 }
 
 enum TournamentFormat {
@@ -33,9 +34,9 @@ enum BracketSide {
 }
 
 enum MatchStatus {
-  PENDING              // No score reported yet
-  AWAITING_VALIDATION  // Player reported a score, waiting for organizer
-  DONE                 // Organizer validated the result
+  PENDING // No score reported yet
+  AWAITING_VALIDATION // Player reported a score, waiting for organizer
+  DONE // Organizer validated the result
 }
 
 enum MatchSlot {
@@ -57,10 +58,11 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  tournaments   Tournament[] @relation("Organizer")
-  validatedMatches Match[]   @relation("Validator")
-  accounts      Account[]
-  sessions      Session[]
+  tournaments      Tournament[] @relation("Organizer")
+  players          Player[]
+  validatedMatches Match[]      @relation("Validator")
+  accounts         Account[]
+  sessions         Session[]
 }
 
 model Tournament {
@@ -74,10 +76,10 @@ model Tournament {
   updatedAt   DateTime         @updatedAt
 
   // Relations
-  organizer   User      @relation("Organizer", fields: [organizerId], references: [id], onDelete: Cascade)
-  players     Player[]
-  matches     Match[]
-  eloRecords  EloRecord[]
+  organizer  User        @relation("Organizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  players    Player[]
+  matches    Match[]
+  eloRecords EloRecord[]
 
   @@index([code])
   @@index([organizerId])
@@ -86,19 +88,19 @@ model Tournament {
 model Player {
   id           String  @id @default(cuid())
   tournamentId String
-  name         String  // Display name (no account required)
-  seed         Int?    // Optional seeding for bracket generation
+  name         String // Display name (no account required)
+  seed         Int? // Optional seeding for bracket generation
   userId       String? // Optional link to a real User account
   token        String  @unique @default(cuid()) // Signed token for score reporting link
 
   // Relations
-  tournament  Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  matchesAsA  Match[]    @relation("PlayerA")
-  matchesAsB  Match[]    @relation("PlayerB")
-  wonMatches  Match[]    @relation("Winner")
-  reportedMatches Match[] @relation("Reporter")
-  eloRecords  EloRecord[]
+  tournament      Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  matchesAsA      Match[]     @relation("PlayerA")
+  matchesAsB      Match[]     @relation("PlayerB")
+  wonMatches      Match[]     @relation("Winner")
+  reportedMatches Match[]     @relation("Reporter")
+  eloRecords      EloRecord[]
 
   @@index([tournamentId])
   @@index([userId])
@@ -106,27 +108,27 @@ model Player {
 }
 
 model Match {
-  id           String      @id @default(cuid())
-  tournamentId String
-  round        Int         // Round number (1-based)
-  position     Int         // Position within the round (for bracket layout)
-  bracketSide  BracketSide
-  playerAId    String?     // Null = bye
-  playerBId    String?     // Null = bye
-  playerAIsBye Boolean     @default(false)
-  playerBIsBye Boolean     @default(false)
-  scoreA       Int?
-  scoreB       Int?
-  winnerId     String?
-  status       MatchStatus @default(PENDING)
-  reportedById String?     // Player who reported the score
-  validatedById String?    // Organizer who validated
-  nextMatchId  String?     // Where winner advances to
-  nextMatchPosition MatchSlot?
-  loserMatchId String?     // Where loser drops to (in double-elim)
+  id                 String      @id @default(cuid())
+  tournamentId       String
+  round              Int // Round number (1-based)
+  position           Int // Position within the round (for bracket layout)
+  bracketSide        BracketSide
+  playerAId          String? // Null = bye
+  playerBId          String? // Null = bye
+  playerAIsBye       Boolean     @default(false)
+  playerBIsBye       Boolean     @default(false)
+  scoreA             Int?
+  scoreB             Int?
+  winnerId           String?
+  status             MatchStatus @default(PENDING)
+  reportedById       String? // Player who reported the score
+  validatedById      String? // Organizer who validated
+  nextMatchId        String? // Where winner advances to
+  nextMatchPosition  MatchSlot?
+  loserMatchId       String? // Where loser drops to (in double-elim)
   loserMatchPosition MatchSlot?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
   // Relations
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
@@ -146,17 +148,17 @@ model Match {
 
 model EloRecord {
   id           String   @id @default(cuid())
-  playerName   String   // Global identifier across tournaments
+  playerName   String // Global identifier across tournaments
   playerId     String
   tournamentId String
   eloBefore    Int
   eloAfter     Int
-  delta        Int      // eloAfter - eloBefore
+  delta        Int // eloAfter - eloBefore
   createdAt    DateTime @default(now())
 
   // Relations
-  player      Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  tournament  Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  player     Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   @@index([playerName])
   @@index([playerId])

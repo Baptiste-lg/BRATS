@@ -44,9 +44,7 @@ export function SignInForm({ providers }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      {error && (
-        <p className="rounded-md bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
-      )}
+      {error && <p className="rounded-md bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>}
       {/* Email magic link */}
       <form onSubmit={handleEmailSignIn} className="flex flex-col gap-3">
         <input

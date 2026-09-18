@@ -6,21 +6,21 @@ describe('handleError', () => {
   it('returns 401 for AuthError', async () => {
     const res = handleError(new AuthError('Unauthorized', 401));
     expect(res.status).toBe(401);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('Unauthorized');
   });
 
   it('returns 404 for NotFoundError', async () => {
     const res = handleError(new NotFoundError('Tournament not found'));
     expect(res.status).toBe(404);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('Tournament not found');
   });
 
   it('returns 422 for ValidationError', async () => {
     const res = handleError(new ValidationError('Invalid input'));
     expect(res.status).toBe(422);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('Invalid input');
   });
 
@@ -32,7 +32,7 @@ describe('handleError', () => {
   it('returns 500 for unknown errors without leaking details', async () => {
     const res = handleError(new Error('db connection failed'));
     expect(res.status).toBe(500);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe('Internal server error');
     expect(body.error).not.toContain('db connection');
   });

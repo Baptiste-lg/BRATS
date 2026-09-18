@@ -145,7 +145,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
     const winnerId = match.scoreA > match.scoreB ? match.playerAId : match.playerBId;
     const loserId = match.scoreA > match.scoreB ? match.playerBId : match.playerAId;
 
-    await db.$transaction(async (tx: typeof db) => {
+    await db.$transaction(async (tx) => {
       // Claim the result conditionally so two organizer requests cannot both
       // award Elo or advance the same match.
       const claimed = await tx.match.updateMany({
@@ -202,11 +202,29 @@ export async function POST(_request: NextRequest, { params }: Params) {
       );
 
       // Grand-final reset is conditional — branch on who wins GF1.
-      if (current.bracketSide === 'GRAND_FINAL' && current.round === 1 && current.nextMatchId !== null) {
+      if (
+        current.bracketSide === 'GRAND_FINAL' &&
+        current.round === 1 &&
+        current.nextMatchId !== null
+      ) {
         if (winnerId === current.playerBId) {
           // LB champion upset the WB champion: activate the reset
-          assignLinkedSlot(mutableMatches, current.nextMatchId, 'A', current.playerAId, false, changed);
-          assignLinkedSlot(mutableMatches, current.nextMatchId, 'B', current.playerBId, false, changed);
+          assignLinkedSlot(
+            mutableMatches,
+            current.nextMatchId,
+            'A',
+            current.playerAId,
+            false,
+            changed,
+          );
+          assignLinkedSlot(
+            mutableMatches,
+            current.nextMatchId,
+            'B',
+            current.playerBId,
+            false,
+            changed,
+          );
         } else {
           // WB champion wins cleanly: reset is never played
           const resetMatch = mutableMatches.get(current.nextMatchId);

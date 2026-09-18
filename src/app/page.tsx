@@ -17,8 +17,8 @@ export default function Home() {
             <span className="text-brand-500">done right.</span>
           </h1>
           <p className="mt-6 max-w-xl text-lg text-gray-400">
-            Create a bracket in under a minute. Share one link. Players report their own
-            scores — no sign-up required.
+            Create a bracket in under a minute. Share one link. Players report their own scores — no
+            sign-up required.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Link
@@ -39,10 +39,7 @@ export default function Home() {
         {/* Feature grid */}
         <section className="grid gap-6 pb-24 md:grid-cols-3">
           {FEATURES.map((f) => (
-            <div
-              key={f.title}
-              className="rounded-xl border border-white/5 bg-white/[0.03] p-6"
-            >
+            <div key={f.title} className="rounded-xl border border-white/5 bg-white/[0.03] p-6">
               <div className="mb-3 text-2xl">{f.icon}</div>
               <h3 className="font-semibold text-white">{f.title}</h3>
               <p className="mt-2 text-sm text-gray-400">{f.description}</p>

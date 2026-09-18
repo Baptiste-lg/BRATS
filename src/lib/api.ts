@@ -29,10 +29,7 @@ export function handleError(error: unknown): NextResponse {
     error instanceof ValidationError ||
     error instanceof ForbiddenError
   ) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: error.status },
-    );
+    return NextResponse.json({ error: error.message }, { status: error.status });
   }
 
   // Log unexpected errors (without exposing internals to the client)
@@ -43,10 +40,7 @@ export function handleError(error: unknown): NextResponse {
 /**
  * Parses and validates a JSON request body. Returns null if the body is invalid.
  */
-export async function parseBody<T>(
-  request: Request,
-  validate: (body: unknown) => T,
-): Promise<T> {
+export async function parseBody<T>(request: Request, validate: (body: unknown) => T): Promise<T> {
   let body: unknown;
   try {
     body = await request.json();
