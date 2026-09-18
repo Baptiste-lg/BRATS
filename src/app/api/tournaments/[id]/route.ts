@@ -58,11 +58,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (!tournament) throw new NotFoundError('Tournament not found');
     if (tournament.organizerId !== user.id) throw new ForbiddenError('Not your tournament');
 
+    const VALID_STATUSES = new Set(['DRAFT', 'LIVE', 'DONE']);
+
     const body = await parseBody(request, (raw) => {
       const b = raw as Record<string, unknown>;
+      const status = typeof b['status'] === 'string' ? b['status'] : undefined;
+      if (status !== undefined && !VALID_STATUSES.has(status)) {
+        throw new ValidationError('status must be DRAFT, LIVE, or DONE');
+      }
       return {
         name: typeof b['name'] === 'string' ? b['name'].trim() : undefined,
-        status: typeof b['status'] === 'string' ? b['status'] : undefined,
+        status,
       };
     });
 

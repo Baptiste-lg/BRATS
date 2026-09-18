@@ -27,15 +27,18 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
 
+    const VALID_FORMATS = new Set(['DOUBLE_ELIMINATION', 'SINGLE_ELIMINATION']);
+
     const body = await parseBody(request, (raw) => {
       const b = raw as Record<string, unknown>;
       if (typeof b['name'] !== 'string' || b['name'].trim().length === 0) {
         throw new ValidationError('name is required');
       }
-      return {
-        name: (b['name'] as string).trim(),
-        format: (b['format'] as string | undefined) ?? 'DOUBLE_ELIMINATION',
-      };
+      const format = (b['format'] as string | undefined) ?? 'DOUBLE_ELIMINATION';
+      if (!VALID_FORMATS.has(format)) {
+        throw new ValidationError('format must be DOUBLE_ELIMINATION or SINGLE_ELIMINATION');
+      }
+      return { name: (b['name'] as string).trim(), format };
     });
 
     // Retry on code collision (extremely unlikely but correct)
