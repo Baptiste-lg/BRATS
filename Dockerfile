@@ -42,16 +42,20 @@ RUN npm ci
 # Copy source
 COPY . .
 
+# Next.js allows projects without static assets, but the runner copies this
+# directory explicitly below. Keep the Docker build valid until the first
+# public asset is added.
+RUN mkdir -p public
+
 # Generate Prisma client
 RUN npx prisma generate
 
 # Build Next.js (standalone output for minimal image)
 ENV NEXT_TELEMETRY_DISABLED=1
 # NextAuth validates its secret while Next.js evaluates the auth route at build
-# time. The runtime container must still receive the real secret via its env.
-ARG NEXTAUTH_SECRET=brats-build-only-secret
-ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-RUN npm run build
+# time. This placeholder is scoped to this command; the runtime container must
+# still receive the real secret via its environment.
+RUN NEXTAUTH_SECRET=brats-build-only-secret npm run build
 
 # =============================================================================
 # Stage 3 — Runner
