@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   description: 'Sign in to BRATS to create and manage tournaments.',
 };
 
+// getProviders() performs a request to the NextAuth endpoint and must not run
+// while Next.js is statically collecting pages during a production build.
+export const dynamic = 'force-dynamic';
+
 export default async function SignInPage() {
   const providers = await getProviders();
 
