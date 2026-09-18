@@ -6,7 +6,7 @@ interface Props {
   matchId: string;
   playerAName: string;
   playerBName: string;
-  token?: string;
+  token: string | undefined;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -29,9 +29,18 @@ export function ScoreReportModal({
     const sA = parseInt(scoreA, 10);
     const sB = parseInt(scoreB, 10);
 
-    if (isNaN(sA) || isNaN(sB)) { setError('Enter valid scores'); return; }
-    if (sA < 0 || sB < 0) { setError('Scores cannot be negative'); return; }
-    if (sA === sB) { setError('Scores cannot be tied'); return; }
+    if (isNaN(sA) || isNaN(sB)) {
+      setError('Enter valid scores');
+      return;
+    }
+    if (sA < 0 || sB < 0) {
+      setError('Scores cannot be negative');
+      return;
+    }
+    if (sA === sB) {
+      setError('Scores cannot be tied');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -47,7 +56,7 @@ export function ScoreReportModal({
         body: JSON.stringify({ scoreA: sA, scoreB: sB }),
       });
 
-      if (!res.ok) throw new Error((await res.json() as { error: string }).error);
+      if (!res.ok) throw new Error(((await res.json()) as { error: string }).error);
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -67,9 +76,7 @@ export function ScoreReportModal({
       >
         <h2 className="mb-4 text-lg font-semibold text-white">Report score</h2>
 
-        {error && (
-          <p className="mb-3 rounded bg-red-500/10 p-2 text-sm text-red-400">{error}</p>
-        )}
+        {error && <p className="mb-3 rounded bg-red-500/10 p-2 text-sm text-red-400">{error}</p>}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex gap-4">

@@ -9,7 +9,7 @@ interface Props {
   tournamentName: string;
   initialMatches: PublicMatch[];
   role: TournamentRole;
-  playerToken?: string;
+  playerToken: string | undefined;
 }
 
 export function TournamentClient({
