@@ -25,7 +25,7 @@ test.describe('Auth pages', () => {
 
 test.describe('API — tournaments', () => {
   test('GET /api/t/nonexistent returns 404', async ({ request }) => {
-    const res = await request.get('/api/t/doesnotexist00');
+    const res = await request.get('/api/t/zzzzz9');
     expect(res.status()).toBe(404);
   });
 
