@@ -48,29 +48,32 @@ export async function POST(request: NextRequest, { params }: Params) {
           if (typeof player['name'] !== 'string' || player['name'].trim().length === 0) {
             throw new ValidationError(`Player at index ${i} is missing a name`);
           }
+          if ((player['name'] as string).trim().length > 100) {
+            throw new ValidationError(`Player at index ${i}: name must be 100 characters or fewer`);
+          }
           return { name: (player['name'] as string).trim() };
         });
       }
       if (typeof b['name'] === 'string' && b['name'].trim().length > 0) {
+        if (b['name'].trim().length > 100) {
+          throw new ValidationError('name must be 100 characters or fewer');
+        }
         return [{ name: (b['name'] as string).trim() }];
       }
       throw new ValidationError('Provide either { name } or { players: [...] }');
     });
 
-    // Get current count to assign seeds
-    const currentCount = await db.player.count({ where: { tournamentId: id } });
-
-    const created_ = await db.$transaction(
-      body.map((p, i) =>
-        db.player.create({
-          data: {
-            tournamentId: id,
-            name: p.name,
-            seed: currentCount + i + 1,
-          },
-        }),
-      ),
-    );
+    // Count inside the transaction to prevent seed collisions under concurrent adds
+    const created_ = await db.$transaction(async (tx) => {
+      const currentCount = await tx.player.count({ where: { tournamentId: id } });
+      return Promise.all(
+        body.map((p, i) =>
+          tx.player.create({
+            data: { tournamentId: id, name: p.name, seed: currentCount + i + 1 },
+          }),
+        ),
+      );
+    });
 
     return created(created_);
   } catch (error) {

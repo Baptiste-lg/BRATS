@@ -34,6 +34,9 @@ export async function POST(request: NextRequest) {
       if (typeof b['name'] !== 'string' || b['name'].trim().length === 0) {
         throw new ValidationError('name is required');
       }
+      if (b['name'].trim().length > 100) {
+        throw new ValidationError('name must be 100 characters or fewer');
+      }
       const format = (b['format'] as string | undefined) ?? 'DOUBLE_ELIMINATION';
       if (!VALID_FORMATS.has(format)) {
         throw new ValidationError('format must be DOUBLE_ELIMINATION or SINGLE_ELIMINATION');
