@@ -55,7 +55,10 @@ export default async function TournamentPage({ params, searchParams }: Props) {
     role = 'organizer';
   } else if (token) {
     // Verify player token
-    const player = await db.player.findUnique({ where: { token } });
+    const player = await db.player.findUnique({
+      where: { token },
+      select: { id: true, tournamentId: true },
+    });
     if (player && player.tournamentId === tournament.id) {
       role = 'player';
       resolvedToken = token;

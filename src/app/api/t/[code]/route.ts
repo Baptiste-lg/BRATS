@@ -17,7 +17,12 @@ export async function GET(request: NextRequest, { params }: Params) {
     if (!isValidTournamentCode(code)) throw new ValidationError('Invalid tournament code');
 
     const token = request.nextUrl.searchParams.get('token');
-    const player = token ? await db.player.findUnique({ where: { token } }) : null;
+    const player = token
+      ? await db.player.findUnique({
+          where: { token },
+          select: { id: true, tournamentId: true },
+        })
+      : null;
 
     const tournament = await db.tournament.findUnique({
       where: { code },
