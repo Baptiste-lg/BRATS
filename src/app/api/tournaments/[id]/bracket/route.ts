@@ -60,12 +60,16 @@ export async function POST(_request: NextRequest, { params }: Params) {
         seed: player.seed ?? i + 1,
       }));
       const bracket = generateBracket(players);
+      const persistedId = (engineId: string) => `${id}_${engineId}`;
 
       await tx.match.deleteMany({ where: { tournamentId: id } });
       for (const match of bracket.matches) {
         await tx.match.create({
           data: {
-            id: match.id,
+            // Engine IDs are stable within a bracket, while database IDs are
+            // global. Prefix them with the tournament to avoid collisions
+            // when two tournaments have the same bracket shape.
+            id: persistedId(match.id),
             tournamentId: id,
             round: match.round,
             position: match.position,
@@ -78,9 +82,9 @@ export async function POST(_request: NextRequest, { params }: Params) {
             scoreB: match.scoreB,
             winnerId: match.winnerId,
             status: match.status,
-            nextMatchId: match.nextMatchId,
+            nextMatchId: match.nextMatchId ? persistedId(match.nextMatchId) : null,
             nextMatchPosition: match.nextMatchPosition,
-            loserMatchId: match.loserMatchId,
+            loserMatchId: match.loserMatchId ? persistedId(match.loserMatchId) : null,
             loserMatchPosition: match.loserMatchPosition,
           },
         });
