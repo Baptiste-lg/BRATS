@@ -161,6 +161,7 @@ model EloRecord {
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   @@index([playerName])
+  @@index([playerName, createdAt])
   @@index([playerId])
 }
 

@@ -8,12 +8,14 @@ export const dynamic = 'force-dynamic';
 // Returns the latest Elo rating per player name, sorted descending.
 export async function GET() {
   try {
-    // One record per playerName: latest by createdAt (DISTINCT ON in Postgres)
-    const records = await db.eloRecord.findMany({
-      distinct: ['playerName'],
-      orderBy: { createdAt: 'desc' },
-      select: { playerName: true, eloAfter: true, delta: true },
-    });
+    // Keep the expensive deduplication in PostgreSQL instead of loading the
+    // complete Elo history into the application process.
+    const records = await db.$queryRaw<{ playerName: string; eloAfter: number; delta: number }[]>`
+      SELECT DISTINCT ON ("playerName")
+        "playerName", "eloAfter", "delta"
+      FROM "EloRecord"
+      ORDER BY "playerName", "createdAt" DESC, "id" DESC
+    `;
 
     const leaderboard = [...records]
       .sort((a, b) => b.eloAfter - a.eloAfter)
