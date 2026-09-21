@@ -80,6 +80,18 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     // Count inside the transaction to prevent seed collisions under concurrent adds
     const created_ = await db.$transaction(async (tx) => {
+      // Lock the tournament row before reading the count. Without a row lock,
+      // two concurrent requests can both allocate the same seed range.
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT "id"
+        FROM "Tournament"
+        WHERE "id" = ${id} AND "status" = 'DRAFT'
+        FOR UPDATE
+      `;
+      if (locked.length === 0) {
+        throw new ValidationError('Cannot add players after the bracket is generated');
+      }
+
       const currentTournament = await tx.tournament.findUnique({
         where: { id },
         select: { status: true },
@@ -106,13 +118,13 @@ export async function POST(request: NextRequest, { params }: Params) {
         names.add(normalizedName);
       }
 
-      return Promise.all(
-        body.map((p, i) =>
-          tx.player.create({
-            data: { tournamentId: id, name: p.name, seed: currentCount + i + 1 },
-          }),
-        ),
-      );
+      return tx.player.createManyAndReturn({
+        data: body.map((p, i) => ({
+          tournamentId: id,
+          name: p.name,
+          seed: currentCount + i + 1,
+        })),
+      });
     });
 
     return created(created_);
