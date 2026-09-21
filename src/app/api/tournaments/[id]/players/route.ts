@@ -56,6 +56,9 @@ export async function POST(request: NextRequest, { params }: Params) {
           throw new ValidationError(`Maximum ${MAX_PLAYERS} players per tournament`);
         }
         return players.map((p, i) => {
+          if (p === null || typeof p !== 'object' || Array.isArray(p)) {
+            throw new ValidationError(`Player at index ${i} must be an object`);
+          }
           const player = p as Record<string, unknown>;
           if (typeof player['name'] !== 'string' || player['name'].trim().length === 0) {
             throw new ValidationError(`Player at index ${i} is missing a name`);
