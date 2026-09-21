@@ -47,5 +47,13 @@ export async function parseBody<T>(request: Request, validate: (body: unknown) =
   } catch {
     throw new ValidationError('Invalid JSON body');
   }
+
+  // Every current JSON endpoint expects an object. Rejecting null, arrays and
+  // primitive values here keeps route validators simple and avoids turning a
+  // malformed payload into an unexpected 500 response.
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    throw new ValidationError('Request body must be a JSON object');
+  }
+
   return validate(body);
 }

@@ -5,7 +5,10 @@ import { requireAuth } from '@/lib/session';
 import { generateTournamentCode } from '@/lib/tournament-code';
 import { ValidationError } from '@/lib/errors';
 
-const VALID_FORMATS = new Set(['DOUBLE_ELIMINATION', 'SINGLE_ELIMINATION']);
+// The bracket engine currently implements double elimination only. Keep the
+// database enum ready for the future, but never create a tournament that the
+// API cannot actually generate.
+const SUPPORTED_FORMAT = 'DOUBLE_ELIMINATION';
 
 // GET /api/tournaments — list tournaments for the authenticated organizer
 export async function GET() {
@@ -37,9 +40,9 @@ export async function POST(request: NextRequest) {
       if (b['name'].trim().length > 100) {
         throw new ValidationError('name must be 100 characters or fewer');
       }
-      const format = (b['format'] as string | undefined) ?? 'DOUBLE_ELIMINATION';
-      if (!VALID_FORMATS.has(format)) {
-        throw new ValidationError('format must be DOUBLE_ELIMINATION or SINGLE_ELIMINATION');
+      const format = (b['format'] as string | undefined) ?? SUPPORTED_FORMAT;
+      if (format !== SUPPORTED_FORMAT) {
+        throw new ValidationError('Only DOUBLE_ELIMINATION is currently supported');
       }
       return { name: (b['name'] as string).trim(), format };
     });
