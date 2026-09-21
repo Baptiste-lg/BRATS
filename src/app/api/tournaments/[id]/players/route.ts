@@ -8,10 +8,20 @@ interface Params {
   params: Promise<{ id: string }>;
 }
 
+const MAX_PLAYERS = 256;
+
 // GET /api/tournaments/[id]/players
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
+    const user = await requireAuth();
+    const tournament = await db.tournament.findUnique({
+      where: { id },
+      select: { organizerId: true },
+    });
+    if (!tournament) throw new NotFoundError('Tournament not found');
+    if (tournament.organizerId !== user.id) throw new ForbiddenError('Not your tournament');
+
     const players = await db.player.findMany({
       where: { tournamentId: id },
       orderBy: { seed: 'asc' },
@@ -42,7 +52,9 @@ export async function POST(request: NextRequest, { params }: Params) {
       if (Array.isArray(b['players'])) {
         const players = b['players'] as unknown[];
         if (players.length === 0) throw new ValidationError('At least one player required');
-        if (players.length > 256) throw new ValidationError('Maximum 256 players per tournament');
+        if (players.length > MAX_PLAYERS) {
+          throw new ValidationError(`Maximum ${MAX_PLAYERS} players per tournament`);
+        }
         return players.map((p, i) => {
           const player = p as Record<string, unknown>;
           if (typeof player['name'] !== 'string' || player['name'].trim().length === 0) {
@@ -65,7 +77,32 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     // Count inside the transaction to prevent seed collisions under concurrent adds
     const created_ = await db.$transaction(async (tx) => {
+      const currentTournament = await tx.tournament.findUnique({
+        where: { id },
+        select: { status: true },
+      });
+      if (!currentTournament || currentTournament.status !== 'DRAFT') {
+        throw new ValidationError('Cannot add players after the bracket is generated');
+      }
+
       const currentCount = await tx.player.count({ where: { tournamentId: id } });
+      if (currentCount + body.length > MAX_PLAYERS) {
+        throw new ValidationError(`Maximum ${MAX_PLAYERS} players per tournament`);
+      }
+
+      const existingPlayers = await tx.player.findMany({
+        where: { tournamentId: id },
+        select: { name: true },
+      });
+      const names = new Set(existingPlayers.map((player) => player.name.toLocaleLowerCase()));
+      for (const player of body) {
+        const normalizedName = player.name.toLocaleLowerCase();
+        if (names.has(normalizedName)) {
+          throw new ValidationError(`Player name already exists: ${player.name}`);
+        }
+        names.add(normalizedName);
+      }
+
       return Promise.all(
         body.map((p, i) =>
           tx.player.create({
