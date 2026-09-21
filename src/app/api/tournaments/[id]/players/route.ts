@@ -109,9 +109,9 @@ export async function POST(request: NextRequest, { params }: Params) {
         where: { tournamentId: id },
         select: { name: true },
       });
-      const names = new Set(existingPlayers.map((player) => player.name.toLocaleLowerCase()));
+      const names = new Set(existingPlayers.map((player) => player.name.toLowerCase()));
       for (const player of body) {
-        const normalizedName = player.name.toLocaleLowerCase();
+        const normalizedName = player.name.toLowerCase();
         if (names.has(normalizedName)) {
           throw new ValidationError(`Player name already exists: ${player.name}`);
         }
