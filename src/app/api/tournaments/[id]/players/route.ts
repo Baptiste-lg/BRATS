@@ -92,14 +92,6 @@ export async function POST(request: NextRequest, { params }: Params) {
         throw new ValidationError('Cannot add players after the bracket is generated');
       }
 
-      const currentTournament = await tx.tournament.findUnique({
-        where: { id },
-        select: { status: true },
-      });
-      if (!currentTournament || currentTournament.status !== 'DRAFT') {
-        throw new ValidationError('Cannot add players after the bracket is generated');
-      }
-
       const currentCount = await tx.player.count({ where: { tournamentId: id } });
       if (currentCount + body.length > MAX_PLAYERS) {
         throw new ValidationError(`Maximum ${MAX_PLAYERS} players per tournament`);
