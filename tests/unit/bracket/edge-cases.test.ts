@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { generateBracket } from '@/lib/bracket';
+import { advanceWinner, generateBracket } from '@/lib/bracket';
 import type { BracketPlayer } from '@/lib/bracket/types';
-import { isBye } from '@/lib/bracket/types';
+import { isBye, isPlayer } from '@/lib/bracket/types';
 
 function makePlayers(count: number): BracketPlayer[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -167,6 +167,27 @@ describe('generateBracket — edge cases', () => {
       expect(b1.matches.map((m) => m.id)).toEqual(b2.matches.map((m) => m.id));
     });
   });
+
+  it('fully resolves every supported player count up to the API limit', () => {
+    for (let count = 2; count <= 256; count++) {
+      let bracket = generateBracket(makePlayers(count));
+      let readyMatch = bracket.matches.find(
+        (match) => match.status === 'PENDING' && isPlayer(match.playerA) && isPlayer(match.playerB),
+      );
+
+      while (readyMatch !== undefined) {
+        const playerA = readyMatch.playerA;
+        if (!isPlayer(playerA)) break;
+        bracket = advanceWinner(bracket, readyMatch.id, playerA.id);
+        readyMatch = bracket.matches.find(
+          (match) =>
+            match.status === 'PENDING' && isPlayer(match.playerA) && isPlayer(match.playerB),
+        );
+      }
+
+      expect(bracket.matches.every((match) => match.status === 'DONE')).toBe(true);
+    }
+  }, 30_000);
 
   describe('input validation', () => {
     it('rejects duplicate player IDs', () => {

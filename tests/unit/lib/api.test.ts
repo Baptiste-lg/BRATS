@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { handleError } from '@/lib/api';
+import { handleError, parseBody } from '@/lib/api';
 import { AuthError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/errors';
 
 describe('handleError', () => {
@@ -40,5 +40,25 @@ describe('handleError', () => {
   it('returns 500 for non-Error throws', async () => {
     const res = handleError('something went wrong');
     expect(res.status).toBe(500);
+  });
+});
+
+describe('parseBody', () => {
+  it('rejects malformed JSON', async () => {
+    const request = new Request('http://localhost', {
+      method: 'POST',
+      body: '{',
+    });
+
+    await expect(parseBody(request, () => true)).rejects.toMatchObject({ status: 422 });
+  });
+
+  it.each([null, [], 'text', 42])('rejects non-object JSON: %j', async (body) => {
+    const request = new Request('http://localhost', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    await expect(parseBody(request, () => true)).rejects.toMatchObject({ status: 422 });
   });
 });
