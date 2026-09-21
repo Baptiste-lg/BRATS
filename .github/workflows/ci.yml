@@ -20,13 +20,11 @@ concurrency:
 jobs:
   # ---------------------------------------------------------------------------
   # Job 1 — Code Quality & Security
-  # Runs ESLint, Prettier, TypeScript check, npm audit, and auto-fixes code style.
+  # Runs the checks against the exact commit that downstream jobs will build.
   # ---------------------------------------------------------------------------
   quality:
     name: Code Quality & Security
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout code
@@ -47,32 +45,21 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
-      - name: Auto-fix ESLint
-        run: npm run lint:fix || true
-
-      - name: Auto-fix Prettier
-        run: npm run format || true
-
-      - name: Commit auto-fixes on main pushes
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          if git diff --quiet; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src tests
-          git commit -m "[AUTO] eslint --fix + prettier --write"
-          git push
-
-      - name: Verify ESLint (no remaining errors)
+      - name: Verify ESLint
         run: npm run lint
 
-      - name: Verify Prettier (no remaining diffs)
+      - name: Verify Prettier
         run: npm run format:check
 
-      - name: TypeScript strict check
+      - name: TypeScript check
         run: npm run type-check
+
+      - name: Production build
+        env:
+          DATABASE_URL: postgresql://brats:brats@localhost:5432/brats
+          DIRECT_URL: postgresql://brats:brats@localhost:5432/brats
+          NEXTAUTH_SECRET: ci-build-secret
+        run: npm run build
 
   # ---------------------------------------------------------------------------
   # Job 2 — Tests
@@ -111,12 +98,73 @@ jobs:
           retention-days: 7
 
   # ---------------------------------------------------------------------------
-  # Job 3 — Deploy to Vercel
+  # Job 3 — End-to-end tests
+  # Runs the public/auth flows against the same production build shape.
+  # ---------------------------------------------------------------------------
+  e2e:
+    name: End-to-End Tests
+    needs: quality
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: brats
+          POSTGRES_PASSWORD: brats
+          POSTGRES_DB: brats
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U brats -d brats"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://brats:brats@localhost:5432/brats
+      DIRECT_URL: postgresql://brats:brats@localhost:5432/brats
+      NEXTAUTH_SECRET: ci-e2e-secret
+      NEXTAUTH_URL: http://localhost:3000
+      EMAIL_SERVER: smtp://user:password@localhost:2525
+      EMAIL_FROM: BRATS <noreply@example.com>
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Create test schema
+        run: npx prisma db push --accept-data-loss
+
+      - name: Run Playwright tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Job 4 — Deploy to Vercel
   # Deploys to production on main/tag pushes when the Vercel secrets exist.
   # ---------------------------------------------------------------------------
   deploy:
     name: Deploy to Vercel
-    needs: test
+    needs: [test, e2e]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
 
