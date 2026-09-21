@@ -17,7 +17,7 @@ export function expectedScore(playerElo: EloRating, opponentElo: EloRating): num
 }
 
 /**
- * Returns the K-factor based on the number of games a player has played.
+ * Returns the K-factor based on the number of validated matches a player has played.
  */
 export function getKFactor(gamesPlayed: number): number {
   if (gamesPlayed <= 29) return K_FACTOR_NEW;

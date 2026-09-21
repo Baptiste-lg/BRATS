@@ -32,6 +32,15 @@ export async function applyEloUpdate(
     throw new Error('Cannot update Elo for a match with a missing player');
   }
 
+  // Elo history is global by player name, so two matches involving the same
+  // name must not read the same rating before either one writes its record.
+  // PostgreSQL transaction advisory locks keep this small critical section
+  // serialized without adding a separate global-rating table.
+  const lockNames = [winner.name, loser.name].sort();
+  for (const playerName of lockNames) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${playerName}, 0))`;
+  }
+
   // Player IDs are tournament-scoped. EloRecord.playerName is the global
   // identity used by this application, so history must be read by name rather
   // than by the current tournament's Player.id.

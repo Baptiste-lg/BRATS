@@ -18,9 +18,9 @@ export interface EloInput {
   winnerElo: EloRating;
   /** Current Elo rating of the loser. */
   loserElo: EloRating;
-  /** Number of tournaments the winner has played. */
+  /** Number of validated matches the winner has played. */
   winnerGamesPlayed?: number;
-  /** Number of tournaments the loser has played. */
+  /** Number of validated matches the loser has played. */
   loserGamesPlayed?: number;
 }
 
