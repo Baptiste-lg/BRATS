@@ -99,6 +99,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         playerB: { select: { id: true, name: true } },
       },
     });
+    if (!updated) throw new NotFoundError('Match not found');
 
     return ok(updated);
   } catch (error) {

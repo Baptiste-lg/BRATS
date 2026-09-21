@@ -279,6 +279,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
         winner: { select: { id: true, name: true } },
       },
     });
+    if (!updated) throw new NotFoundError('Match not found');
 
     return ok(updated);
   } catch (error) {

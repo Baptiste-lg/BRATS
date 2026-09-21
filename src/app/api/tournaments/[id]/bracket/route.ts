@@ -104,6 +104,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
         },
       },
     });
+    if (!updated) throw new NotFoundError('Tournament not found');
 
     return ok(updated);
   } catch (error) {
