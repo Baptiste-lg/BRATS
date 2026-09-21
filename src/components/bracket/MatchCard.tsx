@@ -27,7 +27,7 @@ export function MatchCard({
 
   const canReport =
     (isOrganizer || (playerToken !== undefined && match.canPlayerReport)) &&
-    !isDone &&
+    isPending &&
     match.playerA !== null &&
     match.playerB !== null;
   const canValidate = isOrganizer && isAwaiting && onValidate !== undefined;
