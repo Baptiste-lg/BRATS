@@ -9,10 +9,11 @@ import { db } from '@/lib/db';
 // NextAuth configuration
 // =============================================================================
 
-function requireEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) throw new Error(`Missing required environment variable: ${key}`);
-  return value;
+const isNextBuild = process.env['NEXT_PHASE'] === 'phase-production-build';
+const nextAuthSecret = process.env['NEXTAUTH_SECRET'] ?? (isNextBuild ? 'build-only-secret' : null);
+
+if (!nextAuthSecret) {
+  throw new Error('Missing required environment variable: NEXTAUTH_SECRET');
 }
 
 export const authOptions: NextAuthOptions = {
@@ -20,17 +21,24 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db) as NonNullable<NextAuthOptions['adapter']>,
 
   providers: [
-    // Magic link email — no password required
-    EmailProvider({
-      server: process.env['EMAIL_SERVER'] ?? '',
-      from: process.env['EMAIL_FROM'] ?? 'BRATS <noreply@brats.gg>',
-    }),
-
-    // GitHub OAuth — for developers and power users
-    GitHubProvider({
-      clientId: process.env['GITHUB_ID'] ?? '',
-      clientSecret: process.env['GITHUB_SECRET'] ?? '',
-    }),
+    // Do not register partially configured providers: NextAuth can expose a
+    // broken sign-in method even when the corresponding feature is disabled.
+    ...(process.env['EMAIL_SERVER']
+      ? [
+          EmailProvider({
+            server: process.env['EMAIL_SERVER'],
+            from: process.env['EMAIL_FROM'] ?? 'BRATS <noreply@brats.gg>',
+          }),
+        ]
+      : []),
+    ...(process.env['GITHUB_ID'] && process.env['GITHUB_SECRET']
+      ? [
+          GitHubProvider({
+            clientId: process.env['GITHUB_ID'],
+            clientSecret: process.env['GITHUB_SECRET'],
+          }),
+        ]
+      : []),
   ],
 
   session: {
@@ -61,7 +69,9 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
 
-  secret: requireEnv('NEXTAUTH_SECRET'),
+  // Allow the build phase to run without copying production secrets into the
+  // artifact; deployment configuration must still provide the real secret.
+  secret: nextAuthSecret,
 
   debug: process.env['NODE_ENV'] === 'development',
 };
