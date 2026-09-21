@@ -56,14 +56,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
     const user = await requireAuth();
-    const tournament = await db.tournament.findUnique({
-      where: { id },
-      include: { matches: { select: { status: true } } },
-    });
-
-    if (!tournament) throw new NotFoundError('Tournament not found');
-    if (tournament.organizerId !== user.id) throw new ForbiddenError('Not your tournament');
-
     const body = await parseBody(request, (raw) => {
       const b = raw as Record<string, unknown>;
       const status = typeof b['status'] === 'string' ? b['status'] : undefined;
@@ -87,30 +79,48 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       throw new ValidationError('Provide a name or status to update');
     }
 
-    if (body.status !== undefined && body.status !== tournament.status) {
-      const hasMatches = tournament.matches.length > 0;
-      const allMatchesDone =
-        hasMatches && tournament.matches.every((match) => match.status === 'DONE');
+    const updated = await db.$transaction(async (tx) => {
+      // Serialize status checks with bracket generation and player imports.
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT "id"
+        FROM "Tournament"
+        WHERE "id" = ${id}
+        FOR UPDATE
+      `;
+      if (locked.length === 0) throw new NotFoundError('Tournament not found');
 
-      const validTransition =
-        (tournament.status === 'DRAFT' && body.status === 'LIVE' && hasMatches) ||
-        (tournament.status === 'LIVE' && body.status === 'DONE' && allMatchesDone);
+      const tournament = await tx.tournament.findUnique({
+        where: { id },
+        include: { matches: { select: { status: true } } },
+      });
+      if (!tournament) throw new NotFoundError('Tournament not found');
+      if (tournament.organizerId !== user.id) throw new ForbiddenError('Not your tournament');
 
-      if (!validTransition) {
-        throw new ValidationError(
-          'Invalid tournament status transition; generate the bracket or resolve all matches first',
-        );
+      if (body.status !== undefined && body.status !== tournament.status) {
+        const hasMatches = tournament.matches.length > 0;
+        const allMatchesDone =
+          hasMatches && tournament.matches.every((match) => match.status === 'DONE');
+
+        const validTransition =
+          (tournament.status === 'DRAFT' && body.status === 'LIVE' && hasMatches) ||
+          (tournament.status === 'LIVE' && body.status === 'DONE' && allMatchesDone);
+
+        if (!validTransition) {
+          throw new ValidationError(
+            'Invalid tournament status transition; generate the bracket or resolve all matches first',
+          );
+        }
       }
-    }
 
-    const updated = await db.tournament.update({
-      where: { id },
-      data: {
-        ...(body.name !== undefined && { name: body.name }),
-        ...(body.status !== undefined && {
-          status: body.status as 'DRAFT' | 'LIVE' | 'DONE',
-        }),
-      },
+      return tx.tournament.update({
+        where: { id },
+        data: {
+          ...(body.name !== undefined && { name: body.name }),
+          ...(body.status !== undefined && {
+            status: body.status as 'DRAFT' | 'LIVE' | 'DONE',
+          }),
+        },
+      });
     });
 
     return ok(updated);
