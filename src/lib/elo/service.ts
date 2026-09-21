@@ -47,11 +47,11 @@ export async function applyEloUpdate(
   const [winnerLatest, loserLatest, winnerGames, loserGames] = await Promise.all([
     tx.eloRecord.findFirst({
       where: { playerName: winner.name },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     }),
     tx.eloRecord.findFirst({
       where: { playerName: loser.name },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     }),
     tx.eloRecord.count({ where: { playerName: winner.name } }),
     tx.eloRecord.count({ where: { playerName: loser.name } }),
