@@ -27,6 +27,8 @@ export function SignInForm({ providers }: Props) {
       } else {
         setSent(true);
       }
+    } catch {
+      setError('Could not send magic link. Please try again.');
     } finally {
       setLoading(false);
     }
