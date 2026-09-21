@@ -82,6 +82,20 @@ export async function POST(_request: NextRequest, { params }: Params) {
             scoreB: match.scoreB,
             winnerId: match.winnerId,
             status: match.status,
+            // Self-referencing foreign keys are linked in a second pass after
+            // every match row exists.
+            nextMatchId: null,
+            nextMatchPosition: null,
+            loserMatchId: null,
+            loserMatchPosition: null,
+          },
+        });
+      }
+
+      for (const match of bracket.matches) {
+        await tx.match.update({
+          where: { id: persistedId(match.id) },
+          data: {
             nextMatchId: match.nextMatchId ? persistedId(match.nextMatchId) : null,
             nextMatchPosition: match.nextMatchPosition,
             loserMatchId: match.loserMatchId ? persistedId(match.loserMatchId) : null,
