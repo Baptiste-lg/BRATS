@@ -19,7 +19,7 @@ export async function POST(_request: NextRequest, { params }: Params) {
 
     const tournament = await db.tournament.findUnique({
       where: { id },
-      include: { players: { orderBy: { seed: 'asc' } } },
+      select: { organizerId: true, status: true, format: true },
     });
 
     if (!tournament) throw new NotFoundError('Tournament not found');
@@ -27,58 +27,65 @@ export async function POST(_request: NextRequest, { params }: Params) {
     if (tournament.status !== 'DRAFT') {
       throw new ValidationError('Bracket already generated');
     }
-    if (tournament.players.length < 2) {
-      throw new ValidationError('Need at least 2 players to generate a bracket');
+    if (tournament.format !== 'DOUBLE_ELIMINATION') {
+      throw new ValidationError('Only DOUBLE_ELIMINATION is currently supported');
     }
-
-    // Map DB players to bracket engine format
-    const players: BracketPlayer[] = tournament.players.map(
-      (p: { id: string; name: string; seed: number | null }, i: number) => ({
-        id: p.id,
-        name: p.name,
-        seed: p.seed ?? i + 1,
-      }),
-    );
-
-    // Generate the pure bracket
-    const bracket = generateBracket(players);
-
-    // Persist matches and update tournament status in a transaction
-    await db.$transaction([
-      // Remove any existing matches (re-generation)
-      db.match.deleteMany({ where: { tournamentId: id } }),
-
-      // Create all matches
-      ...bracket.matches.map((m) =>
-        db.match.create({
-          data: {
-            id: m.id,
-            tournamentId: id,
-            round: m.round,
-            position: m.position,
-            bracketSide: m.side,
-            playerAId: m.playerA && 'id' in m.playerA ? m.playerA.id : null,
-            playerBId: m.playerB && 'id' in m.playerB ? m.playerB.id : null,
-            playerAIsBye: isBye(m.playerA),
-            playerBIsBye: isBye(m.playerB),
-            scoreA: m.scoreA,
-            scoreB: m.scoreB,
-            winnerId: m.winnerId,
-            status: m.status,
-            nextMatchId: m.nextMatchId,
-            nextMatchPosition: m.nextMatchPosition,
-            loserMatchId: m.loserMatchId,
-            loserMatchPosition: m.loserMatchPosition,
-          },
-        }),
-      ),
-
-      // Transition tournament to LIVE
-      db.tournament.update({
-        where: { id },
+    await db.$transaction(async (tx) => {
+      // Claim the draft before reading players. The conditional update makes
+      // concurrent generate requests mutually exclusive and also blocks a
+      // player insert from racing this snapshot.
+      const claimed = await tx.tournament.updateMany({
+        where: { id, organizerId: user.id, status: 'DRAFT' },
         data: { status: 'LIVE' },
-      }),
-    ]);
+      });
+      if (claimed.count !== 1) {
+        throw new ValidationError('Bracket already generated');
+      }
+
+      const current = await tx.tournament.findUnique({
+        where: { id },
+        include: { players: { orderBy: { seed: 'asc' } } },
+      });
+      if (!current) throw new NotFoundError('Tournament not found');
+      if (current.format !== 'DOUBLE_ELIMINATION') {
+        throw new ValidationError('Only DOUBLE_ELIMINATION is currently supported');
+      }
+      if (current.players.length < 2) {
+        throw new ValidationError('Need at least 2 players to generate a bracket');
+      }
+
+      const players: BracketPlayer[] = current.players.map((player, i) => ({
+        id: player.id,
+        name: player.name,
+        seed: player.seed ?? i + 1,
+      }));
+      const bracket = generateBracket(players);
+
+      await tx.match.deleteMany({ where: { tournamentId: id } });
+      for (const match of bracket.matches) {
+        await tx.match.create({
+          data: {
+            id: match.id,
+            tournamentId: id,
+            round: match.round,
+            position: match.position,
+            bracketSide: match.side,
+            playerAId: match.playerA && 'id' in match.playerA ? match.playerA.id : null,
+            playerBId: match.playerB && 'id' in match.playerB ? match.playerB.id : null,
+            playerAIsBye: isBye(match.playerA),
+            playerBIsBye: isBye(match.playerB),
+            scoreA: match.scoreA,
+            scoreB: match.scoreB,
+            winnerId: match.winnerId,
+            status: match.status,
+            nextMatchId: match.nextMatchId,
+            nextMatchPosition: match.nextMatchPosition,
+            loserMatchId: match.loserMatchId,
+            loserMatchPosition: match.loserMatchPosition,
+          },
+        });
+      }
+    });
 
     // Return the full tournament with matches
     const updated = await db.tournament.findUnique({
