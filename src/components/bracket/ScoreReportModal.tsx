@@ -26,15 +26,20 @@ export function ScoreReportModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const sA = parseInt(scoreA, 10);
-    const sB = parseInt(scoreB, 10);
+    const sA = Number(scoreA);
+    const sB = Number(scoreB);
 
-    if (isNaN(sA) || isNaN(sB)) {
+    if (
+      scoreA.trim() === '' ||
+      scoreB.trim() === '' ||
+      !Number.isSafeInteger(sA) ||
+      !Number.isSafeInteger(sB)
+    ) {
       setError('Enter valid scores');
       return;
     }
-    if (sA < 0 || sB < 0) {
-      setError('Scores cannot be negative');
+    if (sA < 0 || sB < 0 || sA > 2_147_483_647 || sB > 2_147_483_647) {
+      setError('Scores must be between 0 and 2147483647');
       return;
     }
     if (sA === sB) {
