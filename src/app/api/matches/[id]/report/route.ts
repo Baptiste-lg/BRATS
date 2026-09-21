@@ -17,9 +17,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     const match = await db.match.findUnique({
       where: { id },
       include: {
-        tournament: true,
-        playerA: true,
-        playerB: true,
+        tournament: { select: { organizerId: true, status: true } },
+        playerA: { select: { id: true } },
+        playerB: { select: { id: true } },
       },
     });
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     if (token) {
       // Player token auth — find the player who owns this token
-      const player = await db.player.findUnique({ where: { token } });
+      const player = await db.player.findUnique({ where: { token }, select: { id: true } });
       if (!player) throw new ForbiddenError('Invalid player token');
       if (player.id !== match.playerAId && player.id !== match.playerBId) {
         throw new ForbiddenError('Token does not belong to a player in this match');

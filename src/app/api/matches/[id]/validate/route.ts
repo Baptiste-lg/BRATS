@@ -123,7 +123,9 @@ export async function POST(_request: NextRequest, { params }: Params) {
 
     const match = await db.match.findUnique({
       where: { id },
-      include: { tournament: true },
+      include: {
+        tournament: { select: { organizerId: true, status: true } },
+      },
     });
 
     if (!match) throw new NotFoundError('Match not found');
