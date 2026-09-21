@@ -130,6 +130,9 @@ export async function POST(_request: NextRequest, { params }: Params) {
     if (match.tournament.organizerId !== user.id) {
       throw new ForbiddenError('Only the organizer can validate scores');
     }
+    if (match.tournament.status !== 'LIVE') {
+      throw new ValidationError('Tournament is not live');
+    }
     if (match.status !== 'AWAITING_VALIDATION') {
       throw new ValidationError('Match is not awaiting validation');
     }

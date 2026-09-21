@@ -24,6 +24,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     });
 
     if (!match) throw new NotFoundError('Match not found');
+    if (match.tournament.status !== 'LIVE') {
+      throw new ValidationError('Tournament is not live');
+    }
     if (match.status !== 'PENDING') {
       throw new ValidationError('Match already has a reported score');
     }
