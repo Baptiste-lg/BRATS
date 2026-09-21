@@ -81,8 +81,7 @@ model Tournament {
   matches    Match[]
   eloRecords EloRecord[]
 
-  @@index([code])
-  @@index([organizerId])
+  @@index([organizerId, createdAt])
 }
 
 model Player {
@@ -102,9 +101,8 @@ model Player {
   reportedMatches Match[]     @relation("Reporter")
   eloRecords      EloRecord[]
 
-  @@index([tournamentId])
+  @@index([tournamentId, seed])
   @@index([userId])
-  @@index([token])
 }
 
 model Match {
@@ -142,7 +140,7 @@ model Match {
   loserMatch   Match?     @relation("LoserMatch", fields: [loserMatchId], references: [id], onDelete: SetNull)
   loserMatchOf Match[]    @relation("LoserMatch")
 
-  @@index([tournamentId])
+  @@index([tournamentId, round, position])
   @@index([status])
 }
 
@@ -160,7 +158,6 @@ model EloRecord {
   player     Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  @@index([playerName])
   @@index([playerName, createdAt])
   @@index([playerId])
 }
