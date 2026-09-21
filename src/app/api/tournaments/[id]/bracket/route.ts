@@ -63,46 +63,30 @@ export async function POST(_request: NextRequest, { params }: Params) {
       const persistedId = (engineId: string) => `${id}_${engineId}`;
 
       await tx.match.deleteMany({ where: { tournamentId: id } });
-      for (const match of bracket.matches) {
-        await tx.match.create({
-          data: {
-            // Engine IDs are stable within a bracket, while database IDs are
-            // global. Prefix them with the tournament to avoid collisions
-            // when two tournaments have the same bracket shape.
-            id: persistedId(match.id),
-            tournamentId: id,
-            round: match.round,
-            position: match.position,
-            bracketSide: match.side,
-            playerAId: match.playerA && 'id' in match.playerA ? match.playerA.id : null,
-            playerBId: match.playerB && 'id' in match.playerB ? match.playerB.id : null,
-            playerAIsBye: isBye(match.playerA),
-            playerBIsBye: isBye(match.playerB),
-            scoreA: match.scoreA,
-            scoreB: match.scoreB,
-            winnerId: match.winnerId,
-            status: match.status,
-            // Self-referencing foreign keys are linked in a second pass after
-            // every match row exists.
-            nextMatchId: null,
-            nextMatchPosition: null,
-            loserMatchId: null,
-            loserMatchPosition: null,
-          },
-        });
-      }
-
-      for (const match of bracket.matches) {
-        await tx.match.update({
-          where: { id: persistedId(match.id) },
-          data: {
-            nextMatchId: match.nextMatchId ? persistedId(match.nextMatchId) : null,
-            nextMatchPosition: match.nextMatchPosition,
-            loserMatchId: match.loserMatchId ? persistedId(match.loserMatchId) : null,
-            loserMatchPosition: match.loserMatchPosition,
-          },
-        });
-      }
+      await tx.match.createMany({
+        data: bracket.matches.map((match) => ({
+          // Engine IDs are stable within a bracket, while database IDs are
+          // global. Prefix them with the tournament to avoid collisions
+          // when two tournaments have the same bracket shape.
+          id: persistedId(match.id),
+          tournamentId: id,
+          round: match.round,
+          position: match.position,
+          bracketSide: match.side,
+          playerAId: match.playerA && 'id' in match.playerA ? match.playerA.id : null,
+          playerBId: match.playerB && 'id' in match.playerB ? match.playerB.id : null,
+          playerAIsBye: isBye(match.playerA),
+          playerBIsBye: isBye(match.playerB),
+          scoreA: match.scoreA,
+          scoreB: match.scoreB,
+          winnerId: match.winnerId,
+          status: match.status,
+          nextMatchId: match.nextMatchId ? persistedId(match.nextMatchId) : null,
+          nextMatchPosition: match.nextMatchPosition,
+          loserMatchId: match.loserMatchId ? persistedId(match.loserMatchId) : null,
+          loserMatchPosition: match.loserMatchPosition,
+        })),
+      });
     });
 
     // Return the full tournament with matches
