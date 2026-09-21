@@ -62,6 +62,11 @@ export default async function TournamentPage({ params, searchParams }: Props) {
     }
   }
 
+  const playerId =
+    resolvedToken === undefined
+      ? undefined
+      : tournament.players.find((player) => player.token === resolvedToken)?.id;
+
   // Map to public-safe shape
   const matches: PublicMatch[] = tournament.matches.map((m) => ({
     id: m.id,
@@ -74,7 +79,16 @@ export default async function TournamentPage({ params, searchParams }: Props) {
     scoreB: m.scoreB,
     winner: m.winner ? { name: m.winner.name } : null,
     status: m.status,
+    canPlayerReport:
+      role === 'player' &&
+      playerId !== undefined &&
+      (m.playerA?.id === playerId || m.playerB?.id === playerId),
   }));
+
+  const playerLinks =
+    role === 'organizer'
+      ? tournament.players.map((player) => ({ name: player.name, token: player.token }))
+      : undefined;
 
   return (
     <>
@@ -86,6 +100,7 @@ export default async function TournamentPage({ params, searchParams }: Props) {
           initialMatches={matches}
           role={role}
           playerToken={resolvedToken}
+          playerLinks={playerLinks}
         />
       </main>
     </>

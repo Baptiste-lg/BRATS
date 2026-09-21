@@ -26,7 +26,7 @@ export function MatchCard({
   const isAwaiting = match.status === 'AWAITING_VALIDATION';
 
   const canReport =
-    (playerToken !== undefined || isOrganizer) &&
+    (isOrganizer || (playerToken !== undefined && match.canPlayerReport)) &&
     !isDone &&
     match.playerA !== null &&
     match.playerB !== null;

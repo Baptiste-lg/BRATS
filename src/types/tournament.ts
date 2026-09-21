@@ -39,6 +39,8 @@ export type PublicMatch = {
   scoreB: number | null;
   winner: { name: string } | null;
   status: MatchStatus;
+  /** True only when the current player token belongs to this match. */
+  canPlayerReport: boolean;
 };
 
 // Role enum for the /t/[code] page

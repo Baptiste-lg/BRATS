@@ -10,6 +10,7 @@ interface Props {
   initialMatches: PublicMatch[];
   role: TournamentRole;
   playerToken: string | undefined;
+  playerLinks: { name: string; token: string }[] | undefined;
 }
 
 export function TournamentClient({
@@ -18,18 +19,21 @@ export function TournamentClient({
   initialMatches,
   role,
   playerToken,
+  playerLinks,
 }: Props) {
   const [matches, setMatches] = useState(initialMatches);
 
   const refresh = useCallback(async () => {
-    const res = await fetch(`/api/t/${tournamentCode}`);
+    const query = playerToken ? `?token=${encodeURIComponent(playerToken)}` : '';
+    const res = await fetch(`/api/t/${tournamentCode}${query}`);
     if (res.ok) {
       const { data } = (await res.json()) as { data: { matches: PublicMatch[] } };
       setMatches(data.matches);
     }
-  }, [tournamentCode]);
+  }, [playerToken, tournamentCode]);
 
   const isOrganizer = role === 'organizer';
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
     <div>
@@ -81,6 +85,30 @@ export function TournamentClient({
             Anyone with this link can view the bracket. Players get a unique link to report their
             match score.
           </p>
+          {playerLinks && playerLinks.length > 0 && (
+            <div className="mt-4 border-t border-white/5 pt-4">
+              <h3 className="mb-2 text-sm font-medium text-gray-300">Player links</h3>
+              <ul className="flex flex-col gap-2 text-xs">
+                {playerLinks.map((player) => {
+                  const link = `${origin}/t/${tournamentCode}?token=${encodeURIComponent(player.token)}`;
+                  return (
+                    <li key={player.token} className="flex items-center gap-2">
+                      <span className="w-24 truncate text-gray-400">{player.name}</span>
+                      <code className="min-w-0 flex-1 truncate rounded bg-black/30 px-2 py-1 text-gray-500">
+                        {link}
+                      </code>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(link)}
+                        className="rounded bg-white/5 px-2 py-1 text-gray-400 transition hover:bg-white/10 hover:text-white"
+                      >
+                        Copy
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
