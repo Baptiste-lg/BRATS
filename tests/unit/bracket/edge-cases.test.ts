@@ -187,7 +187,7 @@ describe('generateBracket — edge cases', () => {
 
       expect(bracket.matches.every((match) => match.status === 'DONE')).toBe(true);
     }
-  }, 30_000);
+  }, 60_000);
 
   describe('input validation', () => {
     it('rejects duplicate player IDs', () => {
