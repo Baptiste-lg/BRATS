@@ -9,6 +9,11 @@ import { ValidationError } from '@/lib/errors';
 // database enum ready for the future, but never create a tournament that the
 // API cannot actually generate.
 const SUPPORTED_FORMAT = 'DOUBLE_ELIMINATION';
+const MAX_CODE_ATTEMPTS = 5;
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return error !== null && typeof error === 'object' && 'code' in error && error.code === 'P2002';
+}
 
 // GET /api/tournaments — list tournaments for the authenticated organizer
 export async function GET() {
@@ -47,26 +52,29 @@ export async function POST(request: NextRequest) {
       return { name: (b['name'] as string).trim(), format };
     });
 
-    // Retry on code collision (extremely unlikely but correct)
-    let code: string;
-    let attempts = 0;
-    do {
-      code = generateTournamentCode();
-      const existing = await db.tournament.findUnique({ where: { code } });
-      if (!existing) break;
-      attempts++;
-    } while (attempts < 5);
+    // The unique constraint is the authority: a read-before-write check alone
+    // still races when two organizers generate the same code concurrently.
+    for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
+      const code = generateTournamentCode();
+      try {
+        const tournament = await db.tournament.create({
+          data: {
+            code,
+            name: body.name,
+            format: body.format as 'DOUBLE_ELIMINATION' | 'SINGLE_ELIMINATION',
+            organizerId: user.id,
+          },
+        });
 
-    const tournament = await db.tournament.create({
-      data: {
-        code,
-        name: body.name,
-        format: body.format as 'DOUBLE_ELIMINATION' | 'SINGLE_ELIMINATION',
-        organizerId: user.id,
-      },
-    });
+        return created(tournament);
+      } catch (error) {
+        if (!isUniqueConstraintError(error) || attempt === MAX_CODE_ATTEMPTS - 1) {
+          throw error;
+        }
+      }
+    }
 
-    return created(tournament);
+    throw new ValidationError('Could not allocate a unique tournament code');
   } catch (error) {
     return handleError(error);
   }
