@@ -90,7 +90,7 @@ model Player {
   name         String // Display name (no account required)
   seed         Int? // Optional seeding for bracket generation
   userId       String? // Optional link to a real User account
-  token        String  @unique @default(cuid()) // Signed token for score reporting link
+  token        String  @unique @default(cuid()) // Opaque bearer token for score reporting links
 
   // Relations
   tournament      Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
