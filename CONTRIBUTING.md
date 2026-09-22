@@ -44,6 +44,9 @@ npm run test:coverage
 npm run test:e2e
 ```
 
+Playwright is supported on Linux, macOS, and Windows. OpenBSD runs the unit checks, but E2E tests
+must run in the Ubuntu CI job because Playwright does not provide an OpenBSD browser runtime.
+
 **Test-driven development is required for the bracket engine and Elo calculator.**
 Write failing tests first, then implement.
 
