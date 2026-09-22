@@ -18,7 +18,7 @@ export type MatchWithPlayers = Match & {
   winner: Pick<Player, 'id' | 'name'> | null;
 };
 
-// Public-safe tournament view (no internal IDs)
+// Public-safe tournament view: player/user IDs and bearer tokens stay private.
 export type PublicTournament = {
   code: string;
   name: string;
@@ -29,6 +29,7 @@ export type PublicTournament = {
 };
 
 export type PublicMatch = {
+  // Match IDs are exposed so score actions can target a specific match.
   id: string;
   round: number;
   position: number;
