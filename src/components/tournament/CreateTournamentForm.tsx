@@ -26,6 +26,7 @@ export function CreateTournamentForm() {
     setError(null);
 
     let tournamentId: string | undefined;
+    let bracketRequested = false;
     try {
       // 1. Create tournament
       const tRes = await fetch('/api/tournaments', {
@@ -46,6 +47,7 @@ export function CreateTournamentForm() {
       if (!pRes.ok) throw new Error(((await pRes.json()) as { error: string }).error);
 
       // 3. Generate bracket
+      bracketRequested = true;
       const bRes = await fetch(`/api/tournaments/${tournament.id}/bracket`, {
         method: 'POST',
       });
@@ -54,10 +56,10 @@ export function CreateTournamentForm() {
       // 4. Redirect to the public bracket page
       router.push(`/t/${tournament.code}`);
     } catch (err) {
-      // The flow is intentionally kept backward-compatible with the separate
-      // API endpoints. Remove a partially-created tournament so a failed
-      // player insert or bracket generation does not leave an unusable draft.
-      if (tournamentId) {
+      // Before bracket generation, cleanup is safe because the tournament is
+      // still a draft. Once generation was requested, keep the record: the
+      // server may have committed successfully while the response was lost.
+      if (tournamentId && !bracketRequested) {
         await fetch(`/api/tournaments/${tournamentId}`, { method: 'DELETE' }).catch(
           () => undefined,
         );
