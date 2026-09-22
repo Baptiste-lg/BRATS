@@ -33,7 +33,7 @@ export function TournamentClient({
   }, [playerToken, tournamentCode]);
 
   const isOrganizer = role === 'organizer';
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const sharePath = `/t/${tournamentCode}`;
 
   return (
     <div>
@@ -68,14 +68,10 @@ export function TournamentClient({
           <h2 className="mb-3 text-sm font-medium text-gray-300">Share link</h2>
           <div className="flex items-center gap-3">
             <code className="flex-1 rounded bg-black/30 px-3 py-2 text-sm text-gray-300">
-              {typeof window !== 'undefined'
-                ? `${window.location.origin}/t/${tournamentCode}`
-                : `/t/${tournamentCode}`}
+              {sharePath}
             </code>
             <button
-              onClick={() =>
-                navigator.clipboard.writeText(`${window.location.origin}/t/${tournamentCode}`)
-              }
+              onClick={() => navigator.clipboard.writeText(`${window.location.origin}${sharePath}`)}
               className="rounded bg-white/5 px-3 py-2 text-sm text-gray-400 transition hover:bg-white/10 hover:text-white"
             >
               Copy
@@ -90,7 +86,7 @@ export function TournamentClient({
               <h3 className="mb-2 text-sm font-medium text-gray-300">Player links</h3>
               <ul className="flex flex-col gap-2 text-xs">
                 {playerLinks.map((player) => {
-                  const link = `${origin}/t/${tournamentCode}?token=${encodeURIComponent(player.token)}`;
+                  const link = `${sharePath}?token=${encodeURIComponent(player.token)}`;
                   return (
                     <li key={player.token} className="flex items-center gap-2">
                       <span className="w-24 truncate text-gray-400">{player.name}</span>
@@ -98,7 +94,9 @@ export function TournamentClient({
                         {link}
                       </code>
                       <button
-                        onClick={() => navigator.clipboard.writeText(link)}
+                        onClick={() =>
+                          navigator.clipboard.writeText(`${window.location.origin}${link}`)
+                        }
                         className="rounded bg-white/5 px-2 py-1 text-gray-400 transition hover:bg-white/10 hover:text-white"
                       >
                         Copy
