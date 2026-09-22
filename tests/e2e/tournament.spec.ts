@@ -33,7 +33,6 @@ test.describe('API — tournaments', () => {
     const res = await request.post('/api/tournaments', {
       data: { name: 'Test' },
     });
-    // Should be 401 or redirect
-    expect([401, 302, 307].includes(res.status())).toBe(true);
+    expect(res.status(), await res.text()).toBe(401);
   });
 });

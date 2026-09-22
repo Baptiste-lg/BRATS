@@ -27,5 +27,11 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env['CI'],
     timeout: 120_000,
+    env: {
+      NEXTAUTH_SECRET: process.env['NEXTAUTH_SECRET'] ?? 'brats-e2e-secret',
+      NEXTAUTH_URL: process.env['NEXTAUTH_URL'] ?? 'http://localhost:3000',
+      EMAIL_SERVER: process.env['EMAIL_SERVER'] ?? 'smtp://user:password@localhost:2525',
+      EMAIL_FROM: process.env['EMAIL_FROM'] ?? 'BRATS <noreply@example.com>',
+    },
   },
 });

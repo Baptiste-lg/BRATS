@@ -7,11 +7,9 @@ const prisma = new PrismaClient();
 const suffix = randomBytes(4).toString('hex');
 const email = `e2e-auth-${suffix}@example.com`;
 const tournamentName = `Authenticated E2E ${suffix}`;
-const secret = process.env['NEXTAUTH_SECRET'];
+const secret = process.env['NEXTAUTH_SECRET'] ?? 'brats-e2e-secret';
 let organizerId: string;
 let sessionToken: string;
-
-if (!secret) throw new Error('NEXTAUTH_SECRET is required for authenticated E2E tests');
 
 test.beforeAll(async () => {
   const organizer = await prisma.user.create({
