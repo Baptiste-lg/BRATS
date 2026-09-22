@@ -4,7 +4,7 @@ test.describe('Tournament public page', () => {
   test('non-existent code shows 404', async ({ page }) => {
     await page.goto('/t/doesnotexist99');
     // Should show 404 page
-    await expect(page.locator('text=404').or(page.locator('text=not found'))).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
   });
 });
 

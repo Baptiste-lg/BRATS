@@ -81,12 +81,28 @@ export async function POST(_request: NextRequest, { params }: Params) {
           scoreB: match.scoreB,
           winnerId: match.winnerId,
           status: match.status,
-          nextMatchId: match.nextMatchId ? persistedId(match.nextMatchId) : null,
-          nextMatchPosition: match.nextMatchPosition,
-          loserMatchId: match.loserMatchId ? persistedId(match.loserMatchId) : null,
-          loserMatchPosition: match.loserMatchPosition,
+          // Match links are added after every row exists. PostgreSQL enforces
+          // these self-referencing foreign keys immediately, so inserting a
+          // bracket in engine order would fail when an early match points to
+          // a later one.
+          nextMatchId: null,
+          nextMatchPosition: null,
+          loserMatchId: null,
+          loserMatchPosition: null,
         })),
       });
+
+      for (const match of bracket.matches) {
+        await tx.match.update({
+          where: { id: persistedId(match.id) },
+          data: {
+            nextMatchId: match.nextMatchId ? persistedId(match.nextMatchId) : null,
+            nextMatchPosition: match.nextMatchPosition,
+            loserMatchId: match.loserMatchId ? persistedId(match.loserMatchId) : null,
+            loserMatchPosition: match.loserMatchPosition,
+          },
+        });
+      }
     });
 
     // Return the full tournament with matches
