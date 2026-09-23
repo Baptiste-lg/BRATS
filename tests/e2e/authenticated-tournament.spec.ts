@@ -38,6 +38,13 @@ test.beforeEach(async ({ context }) => {
 });
 
 test('creates a tournament from the authenticated dashboard', async ({ page }) => {
+  const apiErrors: string[] = [];
+  page.on('response', async (response) => {
+    if (response.url().includes('/api/tournaments') && !response.ok()) {
+      apiErrors.push(`${response.status()} ${await response.text()}`);
+    }
+  });
+
   await page.goto('/dashboard');
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
@@ -45,6 +52,9 @@ test('creates a tournament from the authenticated dashboard', async ({ page }) =
   await page.locator('textarea').fill('Alice\nBob');
   await page.getByRole('button', { name: /generate bracket/i }).click();
 
+  if (apiErrors.length > 0) {
+    throw new Error(`Tournament API request failed: ${apiErrors.join(' | ')}`);
+  }
   await expect(page).toHaveURL(/\/t\/[a-z0-9]{6}/);
   await expect(page.getByRole('heading', { name: tournamentName })).toBeVisible();
   await expect(page.getByText('Alice')).toBeVisible();

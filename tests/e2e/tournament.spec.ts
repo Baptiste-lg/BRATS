@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Tournament public page', () => {
   test('non-existent code shows 404', async ({ page }) => {
-    await page.goto('/t/doesnotexist99');
-    // Should show 404 page
-    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+    const response = await page.goto('/t/doesnotexist99');
+    expect(response?.status()).toBe(404);
+    await expect(page).toHaveTitle(/404.*Not Found/i);
   });
 });
 
