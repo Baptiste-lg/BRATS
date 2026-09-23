@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PlayerListInput } from './PlayerListInput';
 
@@ -9,7 +9,12 @@ export function CreateTournamentForm() {
   const [name, setName] = useState('');
   const [players, setPlayers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -99,7 +104,7 @@ export function CreateTournamentForm() {
         </p>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !hydrated}
           className="rounded-lg bg-brand-500 px-6 py-2.5 font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
         >
           {loading ? 'Creating…' : 'Generate bracket →'}
